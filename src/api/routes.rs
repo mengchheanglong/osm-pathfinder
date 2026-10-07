@@ -24,6 +24,10 @@ pub fn create_router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/api/health", get(handlers::health_check))
         .route("/api/route", post(handlers::calculate_route))
+        .route(
+            "/api/isochrone",
+            post(handlers::calculate_isochrone).get(handlers::calculate_isochrone_get),
+        )
         .route("/api/graph/stats", get(handlers::graph_stats))
         .fallback_service(ServeDir::new("frontend"))
         .layer(TraceLayer::new_for_http())

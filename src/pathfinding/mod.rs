@@ -7,6 +7,7 @@ mod astar;
 mod bidirectional;
 pub mod ch;
 mod dijkstra;
+pub mod isochrone;
 mod types;
 
 pub use astar::{astar_search, astar_search_with_options};
@@ -16,4 +17,5 @@ pub use bidirectional::{
 };
 pub use ch::{build_contraction_hierarchies, ch_search, ChEdge, ChGraph};
 pub use dijkstra::{dijkstra_search, dijkstra_search_with_options};
+pub use isochrone::{compute_isochrones, IsochroneBucket, IsochroneResult};
 pub use types::{Algorithm, CostMetric, PathResult, RoutingOptions};

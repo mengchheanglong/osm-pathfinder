@@ -276,3 +276,134 @@ pub async fn calculate_route(
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Isochrone calculation
+// ---------------------------------------------------------------------------
+
+/// Request body for the isochrone calculation endpoint.
+#[derive(Debug, Deserialize)]
+pub struct IsochroneRequest {
+    /// Starting latitude.
+    pub lat: f64,
+    /// Starting longitude.
+    pub lon: f64,
+    /// Travel time thresholds in minutes (defaults to `[10, 20, 30]`).
+    #[serde(default = "default_isochrone_buckets")]
+    pub buckets: Vec<u32>,
+    /// Optional departure time in 24h format (e.g. "08:15").
+    pub departure_time: Option<String>,
+}
+
+fn default_isochrone_buckets() -> Vec<u32> {
+    vec![10, 20, 30]
+}
+
+/// Query parameters for GET /api/isochrone.
+#[derive(Debug, Deserialize)]
+pub struct IsochroneQuery {
+    pub lat: f64,
+    pub lon: f64,
+    pub buckets: Option<String>,
+    pub departure_time: Option<String>,
+}
+
+/// POST /api/isochrone
+///
+/// Computes reachability polygons (GeoJSON FeatureCollection) within travel time limits.
+pub async fn calculate_isochrone(
+    State(state): State<Arc<AppState>>,
+    Json(request): Json<IsochroneRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<ErrorResponse>)> {
+    compute_isochrone_internal(
+        &state,
+        request.lat,
+        request.lon,
+        request.buckets,
+        request.departure_time,
+    )
+    .await
+}
+
+/// GET /api/isochrone
+///
+/// Computes reachability polygons via URL query parameters.
+pub async fn calculate_isochrone_get(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Query(query): axum::extract::Query<IsochroneQuery>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<ErrorResponse>)> {
+    let buckets: Vec<u32> = match query.buckets {
+        Some(s) => s
+            .split(',')
+            .filter_map(|part| part.trim().parse::<u32>().ok())
+            .collect(),
+        None => vec![10, 20, 30],
+    };
+
+    compute_isochrone_internal(&state, query.lat, query.lon, buckets, query.departure_time).await
+}
+
+async fn compute_isochrone_internal(
+    state: &AppState,
+    lat: f64,
+    lon: f64,
+    buckets: Vec<u32>,
+    departure_time: Option<String>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<ErrorResponse>)> {
+    let (start_node, start_lat, start_lon) = match state.spatial_index.nearest_node(lat, lon) {
+        Some(result) => result,
+        None => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse {
+                    error: "Could not snap coordinate to road network".to_string(),
+                }),
+            ));
+        }
+    };
+
+    let departure_minutes = departure_time
+        .as_deref()
+        .and_then(traffic::parse_time_of_day);
+
+    let options = RoutingOptions {
+        metric: CostMetric::Time,
+        departure_minutes,
+        collect_explored: false,
+    };
+
+    let valid_buckets = if buckets.is_empty() {
+        vec![10, 20, 30]
+    } else {
+        buckets
+    };
+
+    info!(
+        lat,
+        lon,
+        snapped_node = start_node,
+        buckets = ?valid_buckets,
+        "Computing isochrones"
+    );
+
+    match pathfinding::compute_isochrones(&state.road_graph, start_node, &valid_buckets, &options) {
+        Some(result) => {
+            let mut geojson = result.to_geojson();
+            if let Some(obj) = geojson.as_object_mut() {
+                if let Some(props) = obj.get_mut("properties").and_then(|p| p.as_object_mut()) {
+                    props.insert(
+                        "snapped_coord".to_string(),
+                        serde_json::json!([start_lon, start_lat]),
+                    );
+                }
+            }
+            Ok(Json(geojson))
+        }
+        None => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "Failed to compute isochrone contours".to_string(),
+            }),
+        )),
+    }
+}

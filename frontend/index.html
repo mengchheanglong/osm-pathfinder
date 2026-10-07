@@ -36,8 +36,24 @@
       <div id="graph-badge" class="badge">Loading graph...</div>
     </header>
 
-    <!-- Route Preset Selection -->
-    <div class="panel-section">
+    <!-- Mode Switcher -->
+    <div class="panel-section mode-switcher-section">
+      <div class="mode-toggle">
+        <button type="button" id="mode-routing-btn" class="mode-btn active" data-mode="routing">
+          <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
+          Point-to-Point
+        </button>
+        <button type="button" id="mode-isochrone-btn" class="mode-btn" data-mode="isochrone">
+          <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          Isochrone Map
+        </button>
+      </div>
+    </div>
+
+    <!-- Routing Mode Controls -->
+    <div id="routing-panel">
+      <!-- Route Preset Selection -->
+      <div class="panel-section">
       <label for="preset-select" class="field-label">
         <span>Presets</span>
         <span class="hint">Quick-jump Cambodia corridors</span>
@@ -188,6 +204,73 @@
       </table>
       <div class="compare-insight" id="compare-insight"></div>
     </div>
+  </div>
+
+  <!-- Isochrone Mode Controls -->
+  <div id="isochrone-panel" class="hidden">
+    <!-- Center Hub Preset Selection -->
+    <div class="panel-section">
+      <label for="iso-preset-select" class="field-label">
+        <span>Hub Preset</span>
+        <span class="hint">City origin</span>
+      </label>
+      <select id="iso-preset-select" class="select-input">
+        <option value="">— Select origin city —</option>
+        <option value="pp" selected>Phnom Penh (Central)</option>
+        <option value="siemreap">Siem Reap (Downtown)</option>
+        <option value="battambang">Battambang (Riverfront)</option>
+        <option value="sihanoukville">Sihanoukville (Port)</option>
+        <option value="kampot">Kampot (Old Town)</option>
+      </select>
+    </div>
+
+    <!-- Center Point Coordinates -->
+    <div class="panel-section">
+      <div class="point-inputs">
+        <div class="point-row">
+          <span class="point-marker center-pin"></span>
+          <div class="point-details">
+            <span class="point-label">Origin Coordinates</span>
+            <span id="iso-coords-display" class="coords-text">11.5564, 104.9282</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reachability Horizons (Minutes) -->
+    <div class="panel-section">
+      <label class="field-label">
+        <span>Reachability Horizons</span>
+        <span class="hint">Toggle contours</span>
+      </label>
+      <div class="bucket-chips">
+        <button type="button" class="chip-btn active" data-minutes="10">10 min</button>
+        <button type="button" class="chip-btn active" data-minutes="20">20 min</button>
+        <button type="button" class="chip-btn active" data-minutes="30">30 min</button>
+        <button type="button" class="chip-btn active" data-minutes="45">45 min</button>
+        <button type="button" class="chip-btn" data-minutes="60">60 min</button>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="panel-section button-group">
+      <button id="calc-iso-btn" class="btn btn-primary">
+        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        Compute Reachability
+      </button>
+      <button id="clear-iso-btn" class="btn btn-ghost" title="Clear isochrone layers">
+        Clear
+      </button>
+    </div>
+
+    <!-- Isochrone Results & Legend -->
+    <div id="iso-results-card" class="panel-section hidden">
+      <h3 class="metrics-heading">Reachability Contours</h3>
+      <div id="iso-legend-list">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
 
     <footer class="panel-footer">
       <span>Map data: OpenStreetMap contributors</span>

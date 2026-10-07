@@ -25,8 +25,10 @@ osm-pathfinder is a highly optimized routing engine that parses OpenStreetMap (O
 - [x] Spatial indexing (R-Tree via `rstar`) for coordinate snapping
 - [x] RESTful API via Axum with static file serving
 - [x] Side-by-side benchmark comparison (5 algorithms, search space pruning %)
+- [x] Travel-time isochrone generation (reachability polygons & GeoJSON contours)
+- [x] Geographic bearing, turn angle & traffic turn penalty calculations
 - [x] GeoJSON response format & interactive search wavefront visualization
-- [x] Modern interactive web UI (Leaflet.js)
+- [x] Modern interactive web UI (Leaflet.js with Routing & Isochrone tabs)
 
 ## Quick Start
 
@@ -120,6 +122,24 @@ Calculates the shortest or fastest path between two coordinates.
   "explored": []
 }
 ```
+
+### Reachability Isochrones
+**Endpoint:** `POST /api/isochrone` or `GET /api/isochrone?lat=...&lon=...&buckets=10,20,30`
+
+Computes concentric travel-time reachability boundary polygons (GeoJSON FeatureCollection) from an origin point.
+
+**Request Body:**
+```json
+{
+  "lat": 11.5564,
+  "lon": 104.9282,
+  "buckets": [10, 20, 30, 45],
+  "departure_time": "08:15"
+}
+```
+
+**Response:**
+Standard GeoJSON `FeatureCollection` with `Polygon` geometries, surface area in $\text{km}^2$, node counts, and visualization styling for Leaflet.js.
 
 ### Graph Statistics
 **Endpoint:** `GET /api/graph/stats`
@@ -238,9 +258,10 @@ cargo clippy -- -D warnings
 
 ## Roadmap
 
-- [ ] Turn restrictions and one-way penalty weights
-- [ ] Multi-modal routing support (walking, cycling, transit)
-- [ ] Isochrone generation (travel-time polygons)
+- [x] Travel-time isochrone generation (reachability polygons)
+- [x] Geographic bearing, turn angle & turn penalty estimation
+- [ ] Turn restrictions from OSM relation data (`type=restriction`)
+- [ ] Multi-modal routing profiles (car, bicycle, pedestrian speeds & access)
 - [ ] Dynamic real-time GTFS / transit schedule integration
 
 ## Contributing

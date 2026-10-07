@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // -------------------------------------------------------------------------
   // State
   // -------------------------------------------------------------------------
+  let currentMode = 'routing';
   let startLatLng = null;
   let endLatLng = null;
   let startMarker = null;
@@ -12,6 +13,18 @@ document.addEventListener('DOMContentLoaded', () => {
   let selectedAlgorithm = 'astar';
   let selectedMetric = 'distance';
   let selectedDepartureTime = '08:15';
+
+  let isoCenterLatLng = [11.5564, 104.9282];
+  let isoCenterMarker = null;
+  let isoBuckets = [10, 20, 30, 45];
+
+  const CITY_HUBS = {
+    'pp': [11.5564, 104.9282],
+    'siemreap': [13.3671, 103.8448],
+    'battambang': [13.0957, 103.2022],
+    'sihanoukville': [10.6253, 103.5234],
+    'kampot': [10.6104, 104.1815]
+  };
 
   // -------------------------------------------------------------------------
   // Cambodia Highway Presets
@@ -66,6 +79,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Layer group for rendering algorithm search wavefronts
   const wavefrontLayer = L.layerGroup().addTo(map);
+  // Layer group for rendering isochrone contours
+  const isoLayerGroup = L.layerGroup().addTo(map);
 
   // Custom Pin Icons
   const createPinIcon = (colorClass) => {
@@ -80,6 +95,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // DOM Elements
   // -------------------------------------------------------------------------
   const graphBadge = document.getElementById('graph-badge');
+  const modeRoutingBtn = document.getElementById('mode-routing-btn');
+  const modeIsochroneBtn = document.getElementById('mode-isochrone-btn');
+  const routingPanel = document.getElementById('routing-panel');
+  const isochronePanel = document.getElementById('isochrone-panel');
   const presetSelect = document.getElementById('preset-select');
   const startCoordsDisplay = document.getElementById('start-coords-display');
   const endCoordsDisplay = document.getElementById('end-coords-display');
@@ -99,6 +118,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const metricTimeBtn = document.getElementById('metric-time-btn');
   const trafficTimeSelect = document.getElementById('traffic-time');
   const showWavefrontToggle = document.getElementById('show-wavefront-toggle');
+
+  const isoPresetSelect = document.getElementById('iso-preset-select');
+  const isoCoordsDisplay = document.getElementById('iso-coords-display');
+  const calcIsoBtn = document.getElementById('calc-iso-btn');
+  const clearIsoBtn = document.getElementById('clear-iso-btn');
+  const isoResultsCard = document.getElementById('iso-results-card');
+  const isoLegendList = document.getElementById('iso-legend-list');
+  const chipBtns = document.querySelectorAll('.chip-btn');
+  const instructionBanner = document.querySelector('.instruction-banner');
 
   // -------------------------------------------------------------------------
   // Fetch Graph Stats on Startup
@@ -156,11 +184,58 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // -------------------------------------------------------------------------
+  // Mode Switcher (Routing vs. Isochrone)
+  // -------------------------------------------------------------------------
+  if (modeRoutingBtn && modeIsochroneBtn) {
+    modeRoutingBtn.addEventListener('click', () => {
+      currentMode = 'routing';
+      modeRoutingBtn.classList.add('active');
+      modeIsochroneBtn.classList.remove('active');
+      routingPanel.classList.remove('hidden');
+      isochronePanel.classList.add('hidden');
+      if (instructionBanner) {
+        instructionBanner.innerHTML = 'Click anywhere on the map to set <strong>Start</strong> (green) and <strong>Destination</strong> (red)';
+      }
+      isoLayerGroup.clearLayers();
+      if (isoCenterMarker) {
+        map.removeLayer(isoCenterMarker);
+        isoCenterMarker = null;
+      }
+    });
+
+    modeIsochroneBtn.addEventListener('click', () => {
+      currentMode = 'isochrone';
+      modeIsochroneBtn.classList.add('active');
+      modeRoutingBtn.classList.remove('active');
+      isochronePanel.classList.remove('hidden');
+      routingPanel.classList.add('hidden');
+      if (instructionBanner) {
+        instructionBanner.innerHTML = 'Click anywhere on the map to set <strong>Reachability Origin</strong> (blue)';
+      }
+      if (routePolyline) map.removeLayer(routePolyline);
+      if (startMarker) map.removeLayer(startMarker);
+      if (endMarker) map.removeLayer(endMarker);
+      wavefrontLayer.clearLayers();
+      metricsCard.classList.add('hidden');
+      compareCard.classList.add('hidden');
+
+      setIsoCenter(isoCenterLatLng);
+      calculateIsochrones();
+    });
+  }
+
+  // -------------------------------------------------------------------------
   // Map Click Handler (Drop Pins)
   // -------------------------------------------------------------------------
   map.on('click', (e) => {
     const lat = parseFloat(e.latlng.lat.toFixed(5));
     const lon = parseFloat(e.latlng.lng.toFixed(5));
+
+    if (currentMode === 'isochrone') {
+      setIsoCenter([lat, lon]);
+      calculateIsochrones();
+      return;
+    }
 
     if (!startLatLng) {
       setStartPoint([lat, lon]);
@@ -172,6 +247,161 @@ document.addEventListener('DOMContentLoaded', () => {
       calculateRoute();
     }
   });
+
+  function setIsoCenter(latlng) {
+    isoCenterLatLng = latlng;
+    if (isoCoordsDisplay) {
+      isoCoordsDisplay.textContent = `${latlng[0].toFixed(4)}, ${latlng[1].toFixed(4)}`;
+    }
+
+    if (isoCenterMarker) {
+      isoCenterMarker.setLatLng(latlng);
+    } else {
+      isoCenterMarker = L.marker(latlng, {
+        icon: createPinIcon('center-pin'),
+        draggable: true
+      }).addTo(map);
+
+      isoCenterMarker.on('dragend', (e) => {
+        const p = e.target.getLatLng();
+        isoCenterLatLng = [parseFloat(p.lat.toFixed(5)), parseFloat(p.lng.toFixed(5))];
+        if (isoCoordsDisplay) {
+          isoCoordsDisplay.textContent = `${isoCenterLatLng[0].toFixed(4)}, ${isoCenterLatLng[1].toFixed(4)}`;
+        }
+        calculateIsochrones();
+      });
+    }
+  }
+
+  // Preset Hub Selection
+  if (isoPresetSelect) {
+    isoPresetSelect.addEventListener('change', (e) => {
+      const city = e.target.value;
+      if (city && CITY_HUBS[city]) {
+        setIsoCenter(CITY_HUBS[city]);
+        map.setView(CITY_HUBS[city], 11);
+        calculateIsochrones();
+      }
+    });
+  }
+
+  // Threshold Chips Selection
+  chipBtns.forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const mins = parseInt(chip.getAttribute('data-minutes'), 10);
+      if (chip.classList.contains('active')) {
+        if (isoBuckets.length > 1) {
+          chip.classList.remove('active');
+          isoBuckets = isoBuckets.filter((m) => m !== mins);
+        }
+      } else {
+        chip.classList.add('active');
+        isoBuckets.push(mins);
+        isoBuckets.sort((a, b) => a - b);
+      }
+      calculateIsochrones();
+    });
+  });
+
+  if (calcIsoBtn) {
+    calcIsoBtn.addEventListener('click', calculateIsochrones);
+  }
+
+  if (clearIsoBtn) {
+    clearIsoBtn.addEventListener('click', () => {
+      isoLayerGroup.clearLayers();
+      if (isoResultsCard) isoResultsCard.classList.add('hidden');
+    });
+  }
+
+  async function calculateIsochrones() {
+    if (!isoCenterLatLng || isoBuckets.length === 0) return;
+
+    if (calcIsoBtn) {
+      calcIsoBtn.disabled = true;
+      calcIsoBtn.textContent = 'Calculating...';
+    }
+
+    try {
+      const res = await fetch('/api/isochrone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lat: isoCenterLatLng[0],
+          lon: isoCenterLatLng[1],
+          buckets: isoBuckets,
+          departure_time: selectedDepartureTime || undefined
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || 'Failed to compute reachability contours');
+        return;
+      }
+
+      const geojson = await res.json();
+      displayIsochrones(geojson);
+    } catch (e) {
+      console.error('Isochrone error:', e);
+      alert('Failed to connect to isochrone service');
+    } finally {
+      if (calcIsoBtn) {
+        calcIsoBtn.disabled = false;
+        calcIsoBtn.innerHTML = `
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          Compute Reachability
+        `;
+      }
+    }
+  }
+
+  function displayIsochrones(geojson) {
+    isoLayerGroup.clearLayers();
+    if (!geojson.features || geojson.features.length === 0) return;
+
+    // Sort descending by time so largest outer polygon renders below smaller inner polygons
+    geojson.features.sort((a, b) => b.properties.time_minutes - a.properties.time_minutes);
+
+    const layer = L.geoJSON(geojson, {
+      style: (feature) => {
+        const p = feature.properties;
+        return {
+          color: p.color,
+          weight: 2,
+          opacity: 0.9,
+          fillColor: p.color,
+          fillOpacity: 0.28
+        };
+      },
+      onEachFeature: (feature, l) => {
+        const p = feature.properties;
+        l.bindTooltip(
+          `⏱️ <strong>${p.time_minutes} min</strong> contour<br>Area: ${p.area_sq_km} km²<br>Nodes reached: ${p.nodes_reached.toLocaleString()}`,
+          { sticky: true }
+        );
+      }
+    }).addTo(isoLayerGroup);
+
+    map.fitBounds(layer.getBounds(), { padding: [50, 50] });
+
+    // Populate legend
+    if (isoLegendList) {
+      isoLegendList.innerHTML = '';
+      const ascending = [...geojson.features].sort((a, b) => a.properties.time_minutes - b.properties.time_minutes);
+      ascending.forEach((f) => {
+        const p = f.properties;
+        const row = document.createElement('div');
+        row.className = 'iso-legend-row';
+        row.innerHTML = `
+          <span class="iso-badge"><span class="iso-color-dot" style="background:${p.color}"></span> ${p.time_minutes} min</span>
+          <span><strong>${p.area_sq_km} km²</strong> <span style="color:var(--text-muted);font-size:0.75rem;">(${p.nodes_reached.toLocaleString()} nodes)</span></span>
+        `;
+        isoLegendList.appendChild(row);
+      });
+      if (isoResultsCard) isoResultsCard.classList.remove('hidden');
+    }
+  }
 
   function setStartPoint(latlng) {
     startLatLng = latlng;
