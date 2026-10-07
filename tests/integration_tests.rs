@@ -47,16 +47,15 @@ fn test_end_to_end_routing_pipeline() {
     assert_eq!(end_node, n4);
 
     // 3. Pathfinding with Dijkstra
-    let dijkstra_res = dijkstra_search(&graph, start_node, end_node)
-        .expect("Dijkstra should find path");
+    let dijkstra_res =
+        dijkstra_search(&graph, start_node, end_node).expect("Dijkstra should find path");
     assert_eq!(dijkstra_res.algorithm, Algorithm::Dijkstra);
     assert_eq!(dijkstra_res.path.first(), Some(&start_node));
     assert_eq!(dijkstra_res.path.last(), Some(&end_node));
     assert!(dijkstra_res.distance_m > 0.0);
 
     // 4. Pathfinding with A*
-    let astar_res = astar_search(&graph, start_node, end_node)
-        .expect("A* should find path");
+    let astar_res = astar_search(&graph, start_node, end_node).expect("A* should find path");
     assert_eq!(astar_res.algorithm, Algorithm::Astar);
     assert_eq!(astar_res.path.first(), Some(&start_node));
     assert_eq!(astar_res.path.last(), Some(&end_node));
@@ -68,8 +67,9 @@ fn test_end_to_end_routing_pipeline() {
     );
 
     // 5. Pathfinding with Bidirectional A* & Bidirectional Dijkstra
-    let bi_astar_res = osm_pathfinder::pathfinding::bidirectional_astar_search(&graph, start_node, end_node)
-        .expect("Bidirectional A* should find path");
+    let bi_astar_res =
+        osm_pathfinder::pathfinding::bidirectional_astar_search(&graph, start_node, end_node)
+            .expect("Bidirectional A* should find path");
     assert_eq!(bi_astar_res.algorithm, Algorithm::BidirectionalAstar);
     assert_eq!(bi_astar_res.path.first(), Some(&start_node));
     assert_eq!(bi_astar_res.path.last(), Some(&end_node));
@@ -78,15 +78,34 @@ fn test_end_to_end_routing_pipeline() {
         "Bidirectional A* distance must match Dijkstra"
     );
 
-    let bi_dijkstra_res = osm_pathfinder::pathfinding::bidirectional_dijkstra_search(&graph, start_node, end_node)
-        .expect("Bidirectional Dijkstra should find path");
+    let bi_dijkstra_res =
+        osm_pathfinder::pathfinding::bidirectional_dijkstra_search(&graph, start_node, end_node)
+            .expect("Bidirectional Dijkstra should find path");
     assert_eq!(bi_dijkstra_res.algorithm, Algorithm::BidirectionalDijkstra);
     assert!(
         (dijkstra_res.distance_m - bi_dijkstra_res.distance_m).abs() < 1e-4,
         "Bidirectional Dijkstra distance must match"
     );
 
-    // 6. Verify coordinates in path
+    // 6. Pathfinding with Contraction Hierarchies
+    let ch = osm_pathfinder::pathfinding::build_contraction_hierarchies(&graph);
+    let ch_res = osm_pathfinder::pathfinding::ch_search(
+        &ch,
+        &graph,
+        start_node,
+        end_node,
+        &osm_pathfinder::pathfinding::RoutingOptions::default(),
+    )
+    .expect("Contraction Hierarchies should find path");
+    assert_eq!(ch_res.algorithm, Algorithm::ContractionHierarchies);
+    assert_eq!(ch_res.path.first(), Some(&start_node));
+    assert_eq!(ch_res.path.last(), Some(&end_node));
+    assert!(
+        (dijkstra_res.distance_m - ch_res.distance_m).abs() < 1e-4,
+        "Contraction Hierarchies distance must match Dijkstra"
+    );
+
+    // 7. Verify coordinates in path
     assert_eq!(astar_res.coordinates.len(), astar_res.path.len());
     let direct_dist = haversine::distance(
         graph.get_coord(start_node).unwrap().lat,

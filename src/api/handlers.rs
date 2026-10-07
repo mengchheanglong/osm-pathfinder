@@ -207,14 +207,19 @@ pub async fn calculate_route(
                 &routing_options,
             )
         }
-        Algorithm::BidirectionalAstar => {
-            pathfinding::bidirectional_astar_search_with_options(
-                &state.road_graph,
-                start_node,
-                end_node,
-                &routing_options,
-            )
-        }
+        Algorithm::BidirectionalAstar => pathfinding::bidirectional_astar_search_with_options(
+            &state.road_graph,
+            start_node,
+            end_node,
+            &routing_options,
+        ),
+        Algorithm::ContractionHierarchies => pathfinding::ch_search(
+            &state.ch_graph,
+            &state.road_graph,
+            start_node,
+            end_node,
+            &routing_options,
+        ),
     };
 
     match result {

@@ -177,7 +177,10 @@ mod tests {
     fn test_create_demo_graph() {
         let graph = create_demo_graph();
         assert!(graph.node_count() >= 35, "Should have all major cities");
-        assert!(graph.edge_count() >= 70, "Should have bidirectional corridors");
+        assert!(
+            graph.edge_count() >= 70,
+            "Should have bidirectional corridors"
+        );
 
         // Phnom Penh (node 0) to Siem Reap (node 2009)
         let pp_id = graph.get_internal_id(1001).expect("PP node exists");

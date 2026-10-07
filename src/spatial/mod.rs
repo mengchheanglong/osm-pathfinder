@@ -4,7 +4,7 @@
 //! O(log N) nearest-neighbor lookups to snap arbitrary GPS coordinates
 //! to the nearest road graph node.
 
-use rstar::{RTree, RTreeObject, AABB, PointDistance};
+use rstar::{PointDistance, RTree, RTreeObject, AABB};
 
 use crate::graph::RoadGraph;
 

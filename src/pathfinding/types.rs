@@ -17,6 +17,9 @@ pub enum Algorithm {
     BidirectionalDijkstra,
     /// Bidirectional A* search with balanced heuristics.
     BidirectionalAstar,
+    /// Contraction Hierarchies with shortcut edge preprocessing and upward search.
+    #[serde(alias = "ch")]
+    ContractionHierarchies,
 }
 
 impl std::fmt::Display for Algorithm {
@@ -26,6 +29,7 @@ impl std::fmt::Display for Algorithm {
             Algorithm::Astar => write!(f, "astar"),
             Algorithm::BidirectionalDijkstra => write!(f, "bidirectional_dijkstra"),
             Algorithm::BidirectionalAstar => write!(f, "bidirectional_astar"),
+            Algorithm::ContractionHierarchies => write!(f, "contraction_hierarchies"),
         }
     }
 }

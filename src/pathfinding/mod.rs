@@ -5,6 +5,7 @@
 
 mod astar;
 mod bidirectional;
+pub mod ch;
 mod dijkstra;
 mod types;
 
@@ -13,5 +14,6 @@ pub use bidirectional::{
     bidirectional_astar_search, bidirectional_astar_search_with_options,
     bidirectional_dijkstra_search, bidirectional_dijkstra_search_with_options,
 };
+pub use ch::{build_contraction_hierarchies, ch_search, ChEdge, ChGraph};
 pub use dijkstra::{dijkstra_search, dijkstra_search_with_options};
 pub use types::{Algorithm, CostMetric, PathResult, RoutingOptions};

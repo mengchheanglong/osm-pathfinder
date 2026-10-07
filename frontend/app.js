@@ -366,6 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
     compareBtn.textContent = 'Benchmarking...';
 
     const algorithms = [
+      { id: 'contraction_hierarchies', name: '⚡ Contraction Hierarchies' },
       { id: 'astar', name: 'A* Search' },
       { id: 'bidirectional_astar', name: 'Bi-directional A*' },
       { id: 'dijkstra', name: 'Dijkstra' },
@@ -423,6 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const dijkstraResult = results.find((r) => r.algorithm === 'dijkstra');
     const astarResult = results.find((r) => r.algorithm === 'astar');
     const biAstarResult = results.find((r) => r.algorithm === 'bidirectional_astar');
+    const chResult = results.find((r) => r.algorithm === 'contraction_hierarchies');
 
     if (dijkstraResult && astarResult && dijkstraResult.nodes_visited > 0) {
       const reduction = (
@@ -442,11 +444,20 @@ document.addEventListener('DOMContentLoaded', () => {
         insight += `<br>🚀 <strong>Dual Wavefronts:</strong> Bi-directional A* further reduced search space by another <strong>${biReduction}%</strong>.`;
       }
 
+      if (chResult && dijkstraResult.nodes_visited > 0) {
+        const chReduction = (
+          ((dijkstraResult.nodes_visited - chResult.nodes_visited) /
+            dijkstraResult.nodes_visited) *
+          100
+        ).toFixed(1);
+        insight += `<br>⚡ <strong>Contraction Hierarchies:</strong> Hierarchical upward search pruned <strong>${chReduction}%</strong> of search space, delivering microsecond responses!`;
+      }
+
       compareInsight.innerHTML = insight;
     }
 
     compareBtn.disabled = false;
-    compareBtn.textContent = 'Compare All 4';
+    compareBtn.textContent = 'Compare All 5';
   });
 
   // -------------------------------------------------------------------------

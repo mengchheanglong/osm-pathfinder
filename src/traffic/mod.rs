@@ -123,10 +123,16 @@ mod tests {
         assert!((night - 1.0).abs() < 0.01, "Night should be free-flow");
 
         let morning_rush = temporal_factor(495); // 08:15 AM
-        assert!(morning_rush >= 3.0, "Morning rush should have heavy multiplier");
+        assert!(
+            morning_rush >= 3.0,
+            "Morning rush should have heavy multiplier"
+        );
 
         let evening_rush = temporal_factor(1065); // 17:45 PM
-        assert!(evening_rush >= 3.5, "Evening rush should have severe multiplier");
+        assert!(
+            evening_rush >= 3.5,
+            "Evening rush should have severe multiplier"
+        );
     }
 
     #[test]
@@ -137,6 +143,9 @@ mod tests {
 
         let countryside = Coordinate::new(12.5000, 104.2000);
         let s_country = spatial_factor(&countryside);
-        assert_eq!(s_country, 0.0, "Rural area should have zero congestion factor");
+        assert_eq!(
+            s_country, 0.0,
+            "Rural area should have zero congestion factor"
+        );
     }
 }

@@ -17,4 +17,5 @@ pub mod traffic;
 pub struct AppState {
     pub road_graph: graph::RoadGraph,
     pub spatial_index: spatial::SpatialIndex,
+    pub ch_graph: std::sync::Arc<pathfinding::ChGraph>,
 }

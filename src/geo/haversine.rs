@@ -40,8 +40,8 @@ pub fn distance(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
     let dlat = (lat2 - lat1) * PI / 180.0;
     let dlon = (lon2 - lon1) * PI / 180.0;
 
-    let a = (dlat / 2.0).sin().powi(2)
-        + lat1_rad.cos() * lat2_rad.cos() * (dlon / 2.0).sin().powi(2);
+    let a =
+        (dlat / 2.0).sin().powi(2) + lat1_rad.cos() * lat2_rad.cos() * (dlon / 2.0).sin().powi(2);
 
     let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt());
 
@@ -74,10 +74,7 @@ mod tests {
     fn test_symmetry() {
         let d1 = distance(11.5564, 104.9282, 13.3671, 103.8448);
         let d2 = distance(13.3671, 103.8448, 11.5564, 104.9282);
-        assert!(
-            (d1 - d2).abs() < 0.01,
-            "Haversine should be symmetric"
-        );
+        assert!((d1 - d2).abs() < 0.01, "Haversine should be symmetric");
     }
 
     #[test]

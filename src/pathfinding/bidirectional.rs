@@ -72,11 +72,7 @@ pub fn bidirectional_dijkstra_search_with_options(
 }
 
 /// Runs Bidirectional A* search with default options.
-pub fn bidirectional_astar_search(
-    graph: &RoadGraph,
-    start: u32,
-    end: u32,
-) -> Option<PathResult> {
+pub fn bidirectional_astar_search(graph: &RoadGraph, start: u32, end: u32) -> Option<PathResult> {
     bidirectional_astar_search_with_options(graph, start, end, &RoutingOptions::default())
 }
 
@@ -218,7 +214,8 @@ fn run_bidirectional(
                     };
 
                     let edge_duration = {
-                        let multiplier = traffic::congestion_multiplier(target_coord, options.departure_minutes);
+                        let multiplier =
+                            traffic::congestion_multiplier(target_coord, options.departure_minutes);
                         edge.duration_s * multiplier
                     };
 
@@ -243,7 +240,12 @@ fn run_bidirectional(
                         }
 
                         let h = if use_heuristic {
-                            compute_bi_heuristic(target_coord, end_coord.lat, end_coord.lon, options.metric)
+                            compute_bi_heuristic(
+                                target_coord,
+                                end_coord.lat,
+                                end_coord.lon,
+                                options.metric,
+                            )
                         } else {
                             0.0
                         };
@@ -291,7 +293,8 @@ fn run_bidirectional(
                     };
 
                     let edge_duration = {
-                        let multiplier = traffic::congestion_multiplier(source_coord, options.departure_minutes);
+                        let multiplier =
+                            traffic::congestion_multiplier(source_coord, options.departure_minutes);
                         edge.duration_s * multiplier
                     };
 
@@ -316,7 +319,12 @@ fn run_bidirectional(
                         }
 
                         let h = if use_heuristic {
-                            compute_bi_heuristic(source_coord, start_coord.lat, start_coord.lon, options.metric)
+                            compute_bi_heuristic(
+                                source_coord,
+                                start_coord.lat,
+                                start_coord.lon,
+                                options.metric,
+                            )
                         } else {
                             0.0
                         };

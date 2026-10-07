@@ -66,6 +66,15 @@ impl Ord for AStarEntry {
     }
 }
 
+/// Computes the admissible heuristic $h(n)$ based on the routing metric.
+fn compute_heuristic(coord: &Coordinate, goal_lat: f64, goal_lon: f64, metric: CostMetric) -> f64 {
+    let dist_m = haversine::distance(coord.lat, coord.lon, goal_lat, goal_lon);
+    match metric {
+        CostMetric::Distance => dist_m,
+        CostMetric::Time => dist_m / traffic::MAX_NETWORK_SPEED_MS,
+    }
+}
+
 /// Runs A* search on the road graph with Haversine heuristic.
 ///
 /// Finds the shortest path from `start` to `end` (internal node IDs).
@@ -83,22 +92,6 @@ impl Ord for AStarEntry {
 ///
 /// `Some(PathResult)` containing the shortest path and metrics,
 /// or `None` if no path exists between the two nodes.
-
-/// Computes the admissible heuristic $h(n)$ based on the routing metric.
-fn compute_heuristic(
-    coord: &Coordinate,
-    goal_lat: f64,
-    goal_lon: f64,
-    metric: CostMetric,
-) -> f64 {
-    let dist_m = haversine::distance(coord.lat, coord.lon, goal_lat, goal_lon);
-    match metric {
-        CostMetric::Distance => dist_m,
-        CostMetric::Time => dist_m / traffic::MAX_NETWORK_SPEED_MS,
-    }
-}
-
-/// Runs A* search on the road graph with default options.
 pub fn astar_search(graph: &RoadGraph, start: u32, end: u32) -> Option<PathResult> {
     astar_search_with_options(graph, start, end, &RoutingOptions::default())
 }
@@ -176,7 +169,8 @@ pub fn astar_search_with_options(
             };
 
             let edge_duration = {
-                let multiplier = traffic::congestion_multiplier(target_coord, options.departure_minutes);
+                let multiplier =
+                    traffic::congestion_multiplier(target_coord, options.departure_minutes);
                 edge.duration_s * multiplier
             };
 
@@ -307,8 +301,7 @@ mod tests {
     fn test_astar_optimal_same_as_dijkstra() {
         let graph = build_test_graph();
 
-        let dijkstra_result =
-            crate::pathfinding::dijkstra::dijkstra_search(&graph, 0, 3).unwrap();
+        let dijkstra_result = crate::pathfinding::dijkstra::dijkstra_search(&graph, 0, 3).unwrap();
         let astar_result = astar_search(&graph, 0, 3).unwrap();
 
         // A* should find the same optimal distance

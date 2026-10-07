@@ -11,7 +11,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use osmpbf::{ElementReader, Element};
+use osmpbf::{Element, ElementReader};
 use tracing::{debug, info};
 
 use crate::graph::{GraphBuilder, RoadGraph};
@@ -59,39 +59,41 @@ pub fn parse_pbf(path: &Path) -> Result<RoadGraph> {
     let mut ways: Vec<(Vec<i64>, bool, f64)> = Vec::new();
     let mut referenced_nodes: HashSet<i64> = HashSet::new();
 
-    reader.for_each(|element| {
-        if let Element::Way(way) = element {
-            // Check for highway tag
-            let mut highway_type: Option<&str> = None;
-            let mut is_oneway = false;
+    reader
+        .for_each(|element| {
+            if let Element::Way(way) = element {
+                // Check for highway tag
+                let mut highway_type: Option<&str> = None;
+                let mut is_oneway = false;
 
-            for (key, value) in way.tags() {
-                match key {
-                    "highway" => highway_type = Some(value),
-                    "oneway" => {
-                        is_oneway = matches!(value, "yes" | "true" | "1");
+                for (key, value) in way.tags() {
+                    match key {
+                        "highway" => highway_type = Some(value),
+                        "oneway" => {
+                            is_oneway = matches!(value, "yes" | "true" | "1");
+                        }
+                        _ => {}
                     }
-                    _ => {}
+                }
+
+                if let Some(hw_type) = highway_type {
+                    if let Some(&speed) = speed_map.get(hw_type) {
+                        let node_ids: Vec<i64> = way.refs().collect();
+                        for &id in &node_ids {
+                            referenced_nodes.insert(id);
+                        }
+
+                        // Motorways are typically one-way
+                        if hw_type == "motorway" || hw_type == "motorway_link" {
+                            is_oneway = true;
+                        }
+
+                        ways.push((node_ids, is_oneway, speed));
+                    }
                 }
             }
-
-            if let Some(hw_type) = highway_type {
-                if let Some(&speed) = speed_map.get(hw_type) {
-                    let node_ids: Vec<i64> = way.refs().collect();
-                    for &id in &node_ids {
-                        referenced_nodes.insert(id);
-                    }
-
-                    // Motorways are typically one-way
-                    if hw_type == "motorway" || hw_type == "motorway_link" {
-                        is_oneway = true;
-                    }
-
-                    ways.push((node_ids, is_oneway, speed));
-                }
-            }
-        }
-    }).context("Failed to read PBF elements (pass 1)")?;
+        })
+        .context("Failed to read PBF elements (pass 1)")?;
 
     info!(
         ways = ways.len(),
@@ -107,19 +109,21 @@ pub fn parse_pbf(path: &Path) -> Result<RoadGraph> {
     let reader = ElementReader::from_path(path)
         .with_context(|| format!("Failed to reopen PBF file: {}", path.display()))?;
 
-    reader.for_each(|element| match element {
-        Element::Node(node) => {
-            if referenced_nodes.contains(&node.id()) {
-                builder.add_node(node.id(), node.lat(), node.lon());
+    reader
+        .for_each(|element| match element {
+            Element::Node(node) => {
+                if referenced_nodes.contains(&node.id()) {
+                    builder.add_node(node.id(), node.lat(), node.lon());
+                }
             }
-        }
-        Element::DenseNode(node) => {
-            if referenced_nodes.contains(&node.id) {
-                builder.add_node(node.id, node.lat(), node.lon());
+            Element::DenseNode(node) => {
+                if referenced_nodes.contains(&node.id) {
+                    builder.add_node(node.id, node.lat(), node.lon());
+                }
             }
-        }
-        _ => {}
-    }).context("Failed to read PBF elements (pass 2)")?;
+            _ => {}
+        })
+        .context("Failed to read PBF elements (pass 2)")?;
 
     debug!("Node coordinates loaded, adding edges");
 

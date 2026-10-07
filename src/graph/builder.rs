@@ -81,12 +81,7 @@ impl GraphBuilder {
     /// `node_osm_ids` are the OSM node IDs forming the way.
     /// `is_oneway` controls whether reverse edges are created.
     /// `speed_kmh` is the assumed travel speed for duration calculation.
-    pub fn add_way(
-        &mut self,
-        node_osm_ids: &[i64],
-        is_oneway: bool,
-        speed_kmh: f64,
-    ) {
+    pub fn add_way(&mut self, node_osm_ids: &[i64], is_oneway: bool, speed_kmh: f64) {
         let speed_ms = speed_kmh / 3.6; // Convert km/h to m/s
 
         for window in node_osm_ids.windows(2) {
@@ -105,12 +100,8 @@ impl GraphBuilder {
             let from_coord = self.coords[from_id as usize];
             let to_coord = self.coords[to_id as usize];
 
-            let distance_m = haversine::distance(
-                from_coord.lat,
-                from_coord.lon,
-                to_coord.lat,
-                to_coord.lon,
-            );
+            let distance_m =
+                haversine::distance(from_coord.lat, from_coord.lon, to_coord.lat, to_coord.lon);
 
             let duration_s = if speed_ms > 0.0 {
                 distance_m / speed_ms
@@ -149,7 +140,12 @@ impl GraphBuilder {
 
     /// Consumes the builder and produces the final [`RoadGraph`].
     pub fn build(self) -> RoadGraph {
-        RoadGraph::new(self.adjacency, self.reverse_adjacency, self.coords, self.osm_id_map)
+        RoadGraph::new(
+            self.adjacency,
+            self.reverse_adjacency,
+            self.coords,
+            self.osm_id_map,
+        )
     }
 }
 

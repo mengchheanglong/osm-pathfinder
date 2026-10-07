@@ -46,25 +46,56 @@ fn bench_pathfinding(c: &mut Criterion) {
 
     group.bench_function("dijkstra", |b| {
         b.iter(|| {
-            dijkstra_search(black_box(&graph), black_box(start_node), black_box(end_node))
+            dijkstra_search(
+                black_box(&graph),
+                black_box(start_node),
+                black_box(end_node),
+            )
         });
     });
 
     group.bench_function("astar", |b| {
         b.iter(|| {
-            astar_search(black_box(&graph), black_box(start_node), black_box(end_node))
+            astar_search(
+                black_box(&graph),
+                black_box(start_node),
+                black_box(end_node),
+            )
         });
     });
 
     group.bench_function("bidirectional_dijkstra", |b| {
         b.iter(|| {
-            bidirectional_dijkstra_search(black_box(&graph), black_box(start_node), black_box(end_node))
+            bidirectional_dijkstra_search(
+                black_box(&graph),
+                black_box(start_node),
+                black_box(end_node),
+            )
         });
     });
 
     group.bench_function("bidirectional_astar", |b| {
         b.iter(|| {
-            bidirectional_astar_search(black_box(&graph), black_box(start_node), black_box(end_node))
+            bidirectional_astar_search(
+                black_box(&graph),
+                black_box(start_node),
+                black_box(end_node),
+            )
+        });
+    });
+
+    let ch_graph = osm_pathfinder::pathfinding::build_contraction_hierarchies(&graph);
+    let options = osm_pathfinder::pathfinding::RoutingOptions::default();
+
+    group.bench_function("contraction_hierarchies", |b| {
+        b.iter(|| {
+            osm_pathfinder::pathfinding::ch_search(
+                black_box(&ch_graph),
+                black_box(&graph),
+                black_box(start_node),
+                black_box(end_node),
+                black_box(&options),
+            )
         });
     });
 

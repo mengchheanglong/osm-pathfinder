@@ -17,17 +17,16 @@ osm-pathfinder is a highly optimized routing engine that parses OpenStreetMap (O
 - [x] A* with Haversine great-circle heuristic
 - [x] Bidirectional A* search (dual meeting wavefronts)
 - [x] Bidirectional Dijkstra search
+- [x] Contraction Hierarchies (CH) preprocessing & upward query (<1 ms latency)
+- [x] Time-Dependent Shortest Path (TDSP) traffic congestion simulation
 - [x] OpenStreetMap PBF file parsing (streaming two-pass)
 - [x] Built-in demo road network (runs out-of-the-box without large downloads)
 - [x] In-memory compressed graph representation (`Vec<Vec<Edge>>`)
 - [x] Spatial indexing (R-Tree via `rstar`) for coordinate snapping
 - [x] RESTful API via Axum with static file serving
-- [x] Algorithm benchmark comparison (nodes visited, query time, % search reduction)
-- [x] GeoJSON response format
-- [x] Interactive frontend map visualization (Leaflet.js)
-- [ ] Contraction Hierarchies preprocessing
-- [ ] Turn restrictions and one-way penalty weights
-- [ ] Live traffic simulation
+- [x] Side-by-side benchmark comparison (5 algorithms, search space pruning %)
+- [x] GeoJSON response format & interactive search wavefront visualization
+- [x] Modern interactive web UI (Leaflet.js)
 
 ## Quick Start
 
@@ -81,7 +80,14 @@ Checks if the routing engine and API are operational.
 ### Calculate Route
 **Endpoint:** `POST /api/route`
 
-Calculates the shortest path between two coordinates. Supported algorithms: `astar`, `bidirectional_astar`, `dijkstra`, `bidirectional_dijkstra`.
+Calculates the shortest or fastest path between two coordinates.
+
+**Supported Algorithms:**
+- `astar`: A* search with Haversine great-circle heuristic
+- `bidirectional_astar`: Bi-directional A* with dual meeting wavefronts
+- `dijkstra`: Classic Dijkstra uniform-cost search
+- `bidirectional_dijkstra`: Dual-directional uniform-cost search
+- `contraction_hierarchies`: Preprocessed highway hierarchies (< 1 ms latency)
 
 **Request Body:**
 ```json
@@ -90,7 +96,10 @@ Calculates the shortest path between two coordinates. Supported algorithms: `ast
   "start_lon": 104.9282,
   "end_lat": 13.3671,
   "end_lon": 103.8448,
-  "algorithm": "astar"
+  "algorithm": "contraction_hierarchies",
+  "metric": "distance",
+  "departure_time": "08:15",
+  "include_explored": false
 }
 ```
 
@@ -103,11 +112,12 @@ Calculates the shortest path between two coordinates. Supported algorithms: `ast
   ],
   "distance_m": 314500.5,
   "duration_s": 14200.2,
-  "nodes_visited": 1284,
-  "query_time_ms": 1.25,
-  "algorithm": "astar",
+  "nodes_visited": 42,
+  "query_time_ms": 0.45,
+  "algorithm": "contraction_hierarchies",
   "start_snapped": [104.9282, 11.5564],
-  "end_snapped": [103.8448, 13.3671]
+  "end_snapped": [103.8448, 13.3671],
+  "explored": []
 }
 ```
 
@@ -169,10 +179,29 @@ osm-pathfinder/
 └── README.md
 ```
 
-## Algorithms
+## Algorithms & Theoretical Foundations
 
-- **Dijkstra's Algorithm**: Guarantees the shortest path by exploring all possible routes uniformly in all directions. Excellent for baseline comparisons but can be slow over large distances.
-- **A* Search (with Haversine heuristic)**: Uses the great-circle distance to the destination as a heuristic, significantly reducing the search space and execution time by prioritizing nodes that head towards the goal.
+1. **Dijkstra's Algorithm (Uniform Cost)**:
+   - Computes guaranteed shortest path by exploring nodes in ascending order of cost $g(u)$.
+   - Serves as the mathematical baseline for correctness and search space comparison.
+
+2. **A* Search (Haversine Heuristic)**:
+   - Evaluates $f(u) = g(u) + h(u)$ using the great-circle Haversine formula as $h(u)$.
+   - Admissible ($h(u) \le d^*(u)$) and monotonic, pruning 70–90% of the search space compared to Dijkstra while preserving mathematical optimality.
+
+3. **Bi-directional Dijkstra**:
+   - Launches simultaneous forward and reverse wavefronts meeting at the midpoint.
+   - Reduces search area by up to 50% ($2 \cdot \pi (r/2)^2 = \frac{1}{2} \pi r^2$).
+
+4. **Bi-directional A* Search**:
+   - Combines balanced symmetric potentials with simultaneous dual-directional exploration.
+
+5. **Contraction Hierarchies (CH)**:
+   - Two-phase technique: preprocessing contracts nodes by importance and inserts shortcut edges; queries execute upward bidirectional Dijkstra on shortcut graphs.
+   - Yields queries in **< 1 ms** even on nationwide networks.
+
+6. **Time-Dependent Shortest Path (TDSP)**:
+   - Simulates realistic urban congestion using temporal Gaussian peak distributions (morning 08:15 AM & evening 17:45 PM rush hours) coupled with radial geographic decay around city centers.
 
 ## Configuration
 
@@ -204,17 +233,15 @@ cargo fmt
 
 Run linter:
 ```bash
-cargo clippy
+cargo clippy -- -D warnings
 ```
 
 ## Roadmap
 
-- Bidirectional A* search implementation
-- Contraction Hierarchies (CH) for ultra-fast long-distance routing
-- Turn restrictions and one-way streets support
-- Live traffic simulation and dynamic weight adjustments
-- Multi-modal routing support (walking, cycling, transit)
-- Frontend map visualization with Leaflet.js
+- [ ] Turn restrictions and one-way penalty weights
+- [ ] Multi-modal routing support (walking, cycling, transit)
+- [ ] Isochrone generation (travel-time polygons)
+- [ ] Dynamic real-time GTFS / transit schedule integration
 
 ## Contributing
 

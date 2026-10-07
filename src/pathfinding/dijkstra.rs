@@ -70,8 +70,6 @@ impl Ord for QueueEntry {
 ///
 /// `Some(PathResult)` containing the shortest path and metrics,
 /// or `None` if no path exists between the two nodes.
-
-/// Runs Dijkstra's algorithm on the road graph with default options.
 pub fn dijkstra_search(graph: &RoadGraph, start: u32, end: u32) -> Option<PathResult> {
     dijkstra_search_with_options(graph, start, end, &RoutingOptions::default())
 }
@@ -134,7 +132,8 @@ pub fn dijkstra_search_with_options(
             let target_coord = graph.get_coord(edge.target);
             let edge_duration = match target_coord {
                 Some(coord) => {
-                    let multiplier = traffic::congestion_multiplier(coord, options.departure_minutes);
+                    let multiplier =
+                        traffic::congestion_multiplier(coord, options.departure_minutes);
                     edge.duration_s * multiplier
                 }
                 None => edge.duration_s,

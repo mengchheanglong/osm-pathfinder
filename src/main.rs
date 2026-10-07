@@ -83,10 +83,23 @@ async fn main() -> Result<()> {
     let spatial_index = spatial::SpatialIndex::new(&road_graph);
     info!("Spatial index built");
 
+    // Preprocess Contraction Hierarchies (shortcuts for sub-millisecond queries)
+    info!("Preprocessing Contraction Hierarchies...");
+    let ch_start = std::time::Instant::now();
+    let ch_graph = Arc::new(osm_pathfinder::pathfinding::build_contraction_hierarchies(
+        &road_graph,
+    ));
+    info!(
+        shortcuts = ch_graph.shortcut_count(),
+        elapsed_ms = ch_start.elapsed().as_millis(),
+        "Contraction Hierarchies preprocessed"
+    );
+
     // Create shared application state
     let state = Arc::new(AppState {
         road_graph,
         spatial_index,
+        ch_graph,
     });
 
     // Build and start the HTTP server
@@ -99,9 +112,7 @@ async fn main() -> Result<()> {
 
     info!(address = %addr, "Server listening");
 
-    axum::serve(listener, app)
-        .await
-        .context("Server error")?;
+    axum::serve(listener, app).await.context("Server error")?;
 
     Ok(())
 }
