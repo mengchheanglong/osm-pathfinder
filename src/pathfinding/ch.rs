@@ -55,6 +55,8 @@ pub struct ChGraph {
     pub forward_up: Vec<Vec<ChEdge>>,
     /// Upward backward edges: `backward_up[u]` has edges $(w \to u)$ with `rank[w] > rank[u]`.
     pub backward_up: Vec<Vec<ChEdge>>,
+    /// Complete forward adjacency including original edges and shortcuts for unpacking.
+    pub all_forward: Vec<Vec<ChEdge>>,
     /// Total shortcuts created during preprocessing.
     pub shortcut_count: usize,
 }
@@ -104,6 +106,7 @@ pub fn build_contraction_hierarchies(graph: &RoadGraph) -> ChGraph {
             rank: Vec::new(),
             forward_up: Vec::new(),
             backward_up: Vec::new(),
+            all_forward: Vec::new(),
             shortcut_count: 0,
         };
     }
@@ -161,13 +164,13 @@ pub fn build_contraction_hierarchies(graph: &RoadGraph) -> ChGraph {
 
         for in_edge in &in_edges {
             let u = in_edge.target;
-            if rank[u as usize] > rank[v as usize] {
+            if rank[u as usize] < rank[v as usize] {
                 continue;
             }
 
             for out_edge in &out_edges {
                 let w = out_edge.target;
-                if u == w || rank[w as usize] > rank[v as usize] {
+                if u == w || rank[w as usize] < rank[v as usize] {
                     continue;
                 }
 
@@ -224,6 +227,7 @@ pub fn build_contraction_hierarchies(graph: &RoadGraph) -> ChGraph {
         rank,
         forward_up,
         backward_up,
+        all_forward: forward,
         shortcut_count,
     }
 }
@@ -279,8 +283,6 @@ pub fn ch_search(
 
     let mut nodes_visited = 0;
     let mut explored_coordinates = Vec::new();
-    let mut best_cost = f64::INFINITY;
-    let mut meeting_node = None;
 
     // Forward upward expansion
     while let Some(ChQueueEntry { node: u, cost }) = heap_f.pop() {
@@ -292,15 +294,6 @@ pub fn ch_search(
         if options.collect_explored && explored_coordinates.len() < 1200 {
             if let Some(c) = graph.get_coord(u) {
                 explored_coordinates.push(*c);
-            }
-        }
-
-        // Check if backward search reached u
-        if dist_b[u as usize] < f64::INFINITY {
-            let total = cost + dist_b[u as usize];
-            if total < best_cost {
-                best_cost = total;
-                meeting_node = Some(u);
             }
         }
 
@@ -331,14 +324,6 @@ pub fn ch_search(
             }
         }
 
-        if dist_f[u as usize] < f64::INFINITY {
-            let total = dist_f[u as usize] + cost;
-            if total < best_cost {
-                best_cost = total;
-                meeting_node = Some(u);
-            }
-        }
-
         for &edge in &ch.backward_up[u as usize] {
             let w = edge.target;
             let new_cost = cost + edge.weight;
@@ -353,43 +338,59 @@ pub fn ch_search(
         }
     }
 
+    // Meeting node selection: find u that minimizes dist_f[u] + dist_b[u]
+    let mut best_cost = f64::INFINITY;
+    let mut meeting_node = None;
+
+    for u in 0..n as u32 {
+        let cf = dist_f[u as usize];
+        let cb = dist_b[u as usize];
+        if cf.is_finite() && cb.is_finite() {
+            let total = cf + cb;
+            if total < best_cost {
+                best_cost = total;
+                meeting_node = Some(u);
+            }
+        }
+    }
+
     let meet = meeting_node?;
     if best_cost.is_infinite() {
         return None;
     }
 
-    // Reconstruct and unpack path
-    let mut forward_path = Vec::new();
+    // Reconstruct edge sequences
+    let mut forward_edges = Vec::new();
     let mut curr = meet;
     while curr != start {
-        if let Some((prev, edge)) = parent_f[curr as usize] {
-            unpack_edge(prev, curr, edge.middle_node, &mut forward_path);
+        if let Some((prev, _)) = parent_f[curr as usize] {
+            forward_edges.push((prev, curr));
             curr = prev;
         } else {
             break;
         }
     }
-    forward_path.push(start);
-    forward_path.reverse();
+    forward_edges.reverse();
 
-    let mut backward_path = Vec::new();
+    let mut backward_edges = Vec::new();
     let mut curr_b = meet;
     while curr_b != end {
-        if let Some((next, edge)) = parent_b[curr_b as usize] {
-            unpack_edge(curr_b, next, edge.middle_node, &mut backward_path);
+        if let Some((next, _)) = parent_b[curr_b as usize] {
+            backward_edges.push((curr_b, next));
             curr_b = next;
         } else {
             break;
         }
     }
 
-    let mut full_path = forward_path;
-    if !backward_path.is_empty() {
-        // Drop duplicated meeting node at boundary
-        if full_path.last() == backward_path.first() {
-            full_path.pop();
-        }
-        full_path.extend(backward_path);
+    let mut full_path = vec![start];
+    for (u, v) in forward_edges {
+        unpack_shortcut(ch, u, v, &mut full_path);
+        full_path.push(v);
+    }
+    for (u, v) in backward_edges {
+        unpack_shortcut(ch, u, v, &mut full_path);
+        full_path.push(v);
     }
 
     // Calculate path coordinates and duration
@@ -425,16 +426,13 @@ pub fn ch_search(
     })
 }
 
-/// Recursively unpacks shortcut edges to recover internal nodes.
-fn unpack_edge(_u: u32, v: u32, middle: Option<u32>, out: &mut Vec<u32>) {
-    match middle {
-        Some(m) => {
-            unpack_edge(m, v, None, out);
-            out.push(m);
-            unpack_edge(_u, m, None, out);
-        }
-        None => {
-            out.push(v);
+/// Recursively unpacks shortcut edges to recover internal nodes in forward sequence.
+fn unpack_shortcut(ch: &ChGraph, u: u32, v: u32, path: &mut Vec<u32>) {
+    if let Some(edge) = ch.all_forward[u as usize].iter().find(|e| e.target == v) {
+        if let Some(m) = edge.middle_node {
+            unpack_shortcut(ch, u, m, path);
+            path.push(m);
+            unpack_shortcut(ch, m, v, path);
         }
     }
 }
