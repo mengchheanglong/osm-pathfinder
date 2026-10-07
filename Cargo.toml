@@ -1,0 +1,54 @@
+[package]
+name = "osm-pathfinder"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <your.email@example.com>"]
+description = "A high-performance OpenStreetMap routing engine and navigation API built with Rust"
+license = "MIT"
+repository = "https://github.com/yourusername/osm-pathfinder"
+keywords = ["routing", "openstreetmap", "pathfinding", "dijkstra", "astar"]
+categories = ["algorithms", "science::geo"]
+
+[dependencies]
+# Web framework & async runtime
+axum = { version = "0.7", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# OpenStreetMap parsing
+osmpbf = "0.3"
+
+# Spatial indexing (R-Tree)
+rstar = "0.12"
+
+# Logging & tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Error handling
+thiserror = "1"
+anyhow = "1"
+
+# CLI argument parsing
+clap = { version = "4", features = ["derive"] }
+
+# Geographic utilities
+geo = "0.28"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+reqwest = { version = "0.12", features = ["json"] }
+tokio-test = "0.4"
+
+[[bench]]
+name = "pathfinding"
+harness = false
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1

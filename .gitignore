@@ -1,0 +1,27 @@
+# Build artifacts
+/target/
+debug/
+*.pdb
+
+# IDE & editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Data files (large OSM extracts)
+/data/*.osm.pbf
+/data/*.osm
+/data/*.geojson
+
+# Environment
+.env
+.env.local
+
+# Benchmark output
+/target/criterion/
