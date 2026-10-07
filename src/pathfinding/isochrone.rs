@@ -190,10 +190,15 @@ pub fn compute_isochrones(
             let target = edge.target;
             let target_coord = graph.get_coord(target);
 
+            // Dynamic Time-Dependent Shortest Path (TDSP):
+            // Advance departure time by accumulated elapsed travel time
+            let edge_departure_minutes = options
+                .departure_minutes
+                .map(|dep| (dep + (time_s / 60.0).floor() as u32) % 1440);
+
             let edge_duration = match target_coord {
                 Some(coord) => {
-                    let multiplier =
-                        traffic::congestion_multiplier(coord, options.departure_minutes);
+                    let multiplier = traffic::congestion_multiplier(coord, edge_departure_minutes);
                     edge.duration_s * multiplier
                 }
                 None => edge.duration_s,

@@ -87,7 +87,7 @@ fn default_algorithm() -> Algorithm {
 }
 
 /// Response body for the route calculation endpoint.
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct RouteResponse {
     /// GeoJSON-compatible path coordinates `[[lon, lat], ...]`.
     pub path: Vec<[f64; 2]>,
@@ -165,6 +165,16 @@ pub async fn calculate_route(
                 }),
             )
         })?;
+
+    // Validate that Contraction Hierarchies is not combined with dynamic departure_time
+    if request.algorithm == Algorithm::ContractionHierarchies && request.departure_time.is_some() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                error: "Contraction Hierarchies does not support dynamic departure_time (TDSP) because shortcut edge weights are precomputed statically. Use Dijkstra, A*, or Bidirectional search for time-dependent traffic routing, or remove departure_time.".to_string(),
+            }),
+        ));
+    }
 
     let departure_minutes = request
         .departure_time

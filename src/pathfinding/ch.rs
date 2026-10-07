@@ -27,12 +27,13 @@
 //!   even on multi-million node graphs (visiting $\approx 200–800$ nodes).
 
 use std::cmp::Ordering;
-use std::collections::BinaryHeap;
+use std::collections::{BinaryHeap, HashMap};
 use std::time::Instant;
 
+use crate::geo::bearing;
 use crate::graph::{Coordinate, RoadGraph};
 
-use super::types::{Algorithm, PathResult, RoutingOptions};
+use super::types::{Algorithm, CostMetric, PathResult, RoutingOptions};
 
 /// A directed edge in the Contraction Hierarchies graph.
 #[derive(Debug, Clone, Copy)]
@@ -89,6 +90,100 @@ impl Ord for ChQueueEntry {
             .partial_cmp(&self.cost)
             .unwrap_or(Ordering::Equal)
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct WitnessEntry {
+    node: u32,
+    cost: f64,
+    hops: usize,
+}
+
+impl PartialEq for WitnessEntry {
+    fn eq(&self, other: &Self) -> bool {
+        self.cost == other.cost
+    }
+}
+impl Eq for WitnessEntry {}
+impl PartialOrd for WitnessEntry {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for WitnessEntry {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // Min-heap
+        other
+            .cost
+            .partial_cmp(&self.cost)
+            .unwrap_or(Ordering::Equal)
+    }
+}
+
+/// Bounded Dijkstra witness search checking if an alternative path exists
+/// between `u` and `w` with cost <= `max_weight` WITHOUT passing through `v`.
+fn witness_search(
+    forward: &[Vec<ChEdge>],
+    rank: &[u32],
+    u: u32,
+    w: u32,
+    v: u32,
+    max_weight: f64,
+    max_settled: usize,
+) -> bool {
+    let mut heap = BinaryHeap::new();
+    let mut dist: HashMap<u32, f64> = HashMap::new();
+
+    dist.insert(u, 0.0);
+    heap.push(WitnessEntry {
+        node: u,
+        cost: 0.0,
+        hops: 0,
+    });
+
+    let mut settled = 0;
+    while let Some(WitnessEntry { node, cost, hops }) = heap.pop() {
+        if cost > *dist.get(&node).unwrap_or(&f64::INFINITY) {
+            continue;
+        }
+
+        if node == w {
+            return cost <= max_weight;
+        }
+
+        settled += 1;
+        if settled > max_settled || hops >= 5 {
+            continue;
+        }
+
+        for edge in &forward[node as usize] {
+            let next_node = edge.target;
+            // The witness path cannot pass through the node currently being contracted (v)
+            if next_node == v {
+                continue;
+            }
+
+            // Only explore through uncontracted nodes (rank > rank[v])
+            if rank[next_node as usize] < rank[v as usize] {
+                continue;
+            }
+
+            let new_cost = cost + edge.weight;
+            if new_cost <= max_weight {
+                let current_d = *dist.get(&next_node).unwrap_or(&f64::INFINITY);
+                if new_cost < current_d {
+                    dist.insert(next_node, new_cost);
+                    heap.push(WitnessEntry {
+                        node: next_node,
+                        cost: new_cost,
+                        hops: hops + 1,
+                    });
+                }
+            }
+        }
+    }
+
+    dist.get(&w).copied().unwrap_or(f64::INFINITY) <= max_weight
 }
 
 impl ChGraph {
@@ -177,14 +272,9 @@ pub fn build_contraction_hierarchies(graph: &RoadGraph) -> ChGraph {
                 let shortcut_weight = in_edge.weight + out_edge.weight;
                 let shortcut_duration = in_edge.duration_s + out_edge.duration_s;
 
-                // Witness search: check if an alternative path exists from u to w <= shortcut_weight
-                let mut witness_found = false;
-                for direct_edge in &forward[u as usize] {
-                    if direct_edge.target == w && direct_edge.weight <= shortcut_weight {
-                        witness_found = true;
-                        break;
-                    }
-                }
+                // Bounded Dijkstra witness search: check if an alternative path exists
+                // from u to w <= shortcut_weight that does NOT traverse the contracted node v.
+                let witness_found = witness_search(&forward, &rank, u, w, v, shortcut_weight, 50);
 
                 if !witness_found {
                     // Insert shortcut edge (u -> w)
@@ -299,7 +389,11 @@ pub fn ch_search(
 
         for &edge in &ch.forward_up[u as usize] {
             let v = edge.target;
-            let new_cost = cost + edge.weight;
+            let edge_cost = match options.metric {
+                CostMetric::Distance => edge.weight,
+                CostMetric::Time => edge.duration_s,
+            };
+            let new_cost = cost + edge_cost;
             if new_cost < dist_f[v as usize] {
                 dist_f[v as usize] = new_cost;
                 parent_f[v as usize] = Some((u, edge));
@@ -326,7 +420,11 @@ pub fn ch_search(
 
         for &edge in &ch.backward_up[u as usize] {
             let w = edge.target;
-            let new_cost = cost + edge.weight;
+            let edge_cost = match options.metric {
+                CostMetric::Distance => edge.weight,
+                CostMetric::Time => edge.duration_s,
+            };
+            let new_cost = cost + edge_cost;
             if new_cost < dist_b[w as usize] {
                 dist_b[w as usize] = new_cost;
                 parent_b[w as usize] = Some((u, edge));
@@ -409,6 +507,16 @@ pub fn ch_search(
             actual_duration += edge.duration_s;
         }
     }
+    for w in full_path.windows(3) {
+        if let (Some(c0), Some(c1), Some(c2)) = (
+            graph.get_coord(w[0]),
+            graph.get_coord(w[1]),
+            graph.get_coord(w[2]),
+        ) {
+            actual_duration +=
+                bearing::calculate_turn_penalty(c0.lat, c0.lon, c1.lat, c1.lon, c2.lat, c2.lon);
+        }
+    }
 
     Some(PathResult {
         path: full_path,
@@ -461,5 +569,29 @@ mod tests {
         assert_eq!(*res.path.first().unwrap(), 0);
         assert_eq!(*res.path.last().unwrap(), 3);
         assert!(res.distance_m > 0.0);
+    }
+
+    #[test]
+    fn test_contraction_hierarchies_time_metric() {
+        let mut builder = GraphBuilder::new();
+        // Line graph: 0 -> 1 -> 2 -> 3
+        builder.add_node(101, 11.0, 104.0);
+        builder.add_node(102, 11.1, 104.0);
+        builder.add_node(103, 11.2, 104.0);
+        builder.add_node(104, 11.3, 104.0);
+
+        builder.add_way(&[101, 102, 103, 104], false, 60.0);
+        let graph = builder.build();
+
+        let ch = build_contraction_hierarchies(&graph);
+        let opts = RoutingOptions {
+            metric: CostMetric::Time,
+            departure_minutes: None,
+            collect_explored: false,
+        };
+        let res = ch_search(&ch, &graph, 0, 3, &opts).expect("CH time query succeeds");
+        assert_eq!(*res.path.first().unwrap(), 0);
+        assert_eq!(*res.path.last().unwrap(), 3);
+        assert!(res.duration_s > 0.0);
     }
 }

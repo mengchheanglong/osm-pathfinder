@@ -121,6 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const metricDistBtn = document.getElementById('metric-dist-btn');
   const metricTimeBtn = document.getElementById('metric-time-btn');
   const trafficTimeSelect = document.getElementById('traffic-time');
+  const chTrafficNote = document.getElementById('ch-traffic-note');
   const showWavefrontToggle = document.getElementById('show-wavefront-toggle');
 
   const isoPresetSelect = document.getElementById('iso-preset-select');
@@ -239,6 +240,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  updateTrafficControlState();
 
   // -------------------------------------------------------------------------
   // Mode Switcher (Routing vs. Isochrone)
@@ -534,6 +537,21 @@ document.addEventListener('DOMContentLoaded', () => {
   // -------------------------------------------------------------------------
   // Algorithm Card Selection
   // -------------------------------------------------------------------------
+  function updateTrafficControlState() {
+    const isCH = selectedAlgorithm === 'contraction_hierarchies';
+    if (trafficTimeSelect) {
+      trafficTimeSelect.disabled = isCH;
+      trafficTimeSelect.style.opacity = isCH ? '0.5' : '1.0';
+    }
+    if (chTrafficNote) {
+      if (isCH) {
+        chTrafficNote.classList.remove('hidden');
+      } else {
+        chTrafficNote.classList.add('hidden');
+      }
+    }
+  }
+
   algoCards.forEach((card) => {
     card.addEventListener('click', () => {
       algoCards.forEach((c) => c.classList.remove('active'));
@@ -541,6 +559,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const radio = card.querySelector('input');
       radio.checked = true;
       selectedAlgorithm = radio.value;
+
+      updateTrafficControlState();
 
       if (startLatLng && endLatLng) {
         calculateRoute();
@@ -558,6 +578,7 @@ document.addEventListener('DOMContentLoaded', () => {
     calcRouteBtn.textContent = 'Calculating...';
 
     const wantsWavefront = showWavefrontToggle ? showWavefrontToggle.checked : true;
+    const depTime = selectedAlgorithm === 'contraction_hierarchies' ? undefined : (selectedDepartureTime || undefined);
 
     try {
       const res = await fetch('/api/route', {
@@ -570,7 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
           end_lon: endLatLng[1],
           algorithm: selectedAlgorithm,
           metric: selectedMetric,
-          departure_time: selectedDepartureTime || undefined,
+          departure_time: depTime,
           include_explored: wantsWavefront
         })
       });
@@ -666,7 +687,7 @@ document.addEventListener('DOMContentLoaded', () => {
     compareBtn.textContent = 'Benchmarking...';
 
     const algorithms = [
-      { id: 'contraction_hierarchies', name: '⚡ Contraction Hierarchies' },
+      { id: 'contraction_hierarchies', name: '⚡ Contraction Hierarchies (Static)' },
       { id: 'astar', name: 'A* Search' },
       { id: 'bidirectional_astar', name: 'Bi-directional A*' },
       { id: 'dijkstra', name: 'Dijkstra' },
@@ -690,7 +711,7 @@ document.addEventListener('DOMContentLoaded', () => {
             end_lon: endLatLng[1],
             algorithm: algo.id,
             metric: selectedMetric,
-            departure_time: selectedDepartureTime || undefined,
+            departure_time: algo.id === 'contraction_hierarchies' ? undefined : (selectedDepartureTime || undefined),
             include_explored: false
           })
         });

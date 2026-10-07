@@ -120,3 +120,41 @@ fn test_end_to_end_routing_pipeline() {
         direct_dist
     );
 }
+
+#[tokio::test]
+async fn test_ch_rejects_dynamic_departure_time() {
+    let graph = osm_pathfinder::graph::create_demo_graph();
+    let spatial_index = osm_pathfinder::spatial::SpatialIndex::new(&graph);
+    let ch_graph = std::sync::Arc::new(osm_pathfinder::pathfinding::build_contraction_hierarchies(
+        &graph,
+    ));
+    let state = std::sync::Arc::new(osm_pathfinder::AppState {
+        road_graph: graph,
+        spatial_index,
+        ch_graph,
+    });
+
+    let req = osm_pathfinder::api::handlers::RouteRequest {
+        start_lat: 11.5564,
+        start_lon: 104.9282,
+        end_lat: 13.3671,
+        end_lon: 103.8448,
+        algorithm: osm_pathfinder::pathfinding::Algorithm::ContractionHierarchies,
+        metric: osm_pathfinder::pathfinding::CostMetric::Time,
+        departure_time: Some("08:15".to_string()),
+        include_explored: false,
+    };
+
+    let result = osm_pathfinder::api::handlers::calculate_route(
+        axum::extract::State(state),
+        axum::Json(req),
+    )
+    .await;
+
+    assert!(result.is_err());
+    let (status, err_json) = result.unwrap_err();
+    assert_eq!(status, axum::http::StatusCode::BAD_REQUEST);
+    assert!(err_json
+        .error
+        .contains("Contraction Hierarchies does not support dynamic departure_time"));
+}

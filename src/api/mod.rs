@@ -3,7 +3,7 @@
 //! Provides the Axum router configuration and request handlers
 //! for the REST API endpoints.
 
-mod handlers;
+pub mod handlers;
 mod routes;
 
 pub use routes::create_router;

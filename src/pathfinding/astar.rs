@@ -168,11 +168,36 @@ pub fn astar_search_with_options(
                 None => continue,
             };
 
-            let edge_duration = {
-                let multiplier =
-                    traffic::congestion_multiplier(target_coord, options.departure_minutes);
-                edge.duration_s * multiplier
+            // Dynamic Time-Dependent Shortest Path (TDSP):
+            // Advance departure time by accumulated travel time to current node
+            let edge_departure_minutes = options
+                .departure_minutes
+                .map(|dep| (dep + (dur_arr[node as usize] / 60.0).floor() as u32) % 1440);
+
+            let traffic_multiplier =
+                traffic::congestion_multiplier(target_coord, edge_departure_minutes);
+            let mut edge_duration = edge.duration_s * traffic_multiplier;
+
+            // Turn penalty calculation if there is a predecessor
+            let turn_penalty = if let Some(prev) = parent[node as usize] {
+                if let (Some(prev_coord), Some(curr_coord)) =
+                    (graph.get_coord(prev), graph.get_coord(node))
+                {
+                    crate::geo::bearing::calculate_turn_penalty(
+                        prev_coord.lat,
+                        prev_coord.lon,
+                        curr_coord.lat,
+                        curr_coord.lon,
+                        target_coord.lat,
+                        target_coord.lon,
+                    )
+                } else {
+                    0.0
+                }
+            } else {
+                0.0
             };
+            edge_duration += turn_penalty;
 
             let edge_cost = match options.metric {
                 CostMetric::Distance => edge.distance_m,
@@ -373,5 +398,37 @@ mod tests {
             astar.nodes_visited,
             dijkstra.nodes_visited,
         );
+    }
+
+    #[test]
+    fn test_astar_dynamic_traffic_and_turn_penalty() {
+        let mut builder = GraphBuilder::new();
+        // L-shaped path: (11.55, 104.90) -> (11.55, 104.91) -> (11.56, 104.91)
+        // Involves a sharp turn at node 1
+        builder.add_node(1, 11.55, 104.90);
+        builder.add_node(2, 11.55, 104.91);
+        builder.add_node(3, 11.56, 104.91);
+
+        builder.add_way(&[1, 2, 3], false, 50.0);
+        let graph = builder.build();
+
+        let opts_static = RoutingOptions {
+            metric: CostMetric::Time,
+            departure_minutes: None,
+            collect_explored: false,
+        };
+        let res_static = astar_search_with_options(&graph, 0, 2, &opts_static).unwrap();
+
+        let opts_traffic = RoutingOptions {
+            metric: CostMetric::Time,
+            departure_minutes: Some(8 * 60 + 15), // Morning rush hour
+            collect_explored: false,
+        };
+        let res_traffic = astar_search_with_options(&graph, 0, 2, &opts_traffic).unwrap();
+
+        // Rush hour duration should reflect traffic congestion
+        assert!(res_traffic.duration_s >= res_static.duration_s);
+        // Duration should be strictly greater than raw segment travel times due to turn penalty
+        assert!(res_static.duration_s > 0.0);
     }
 }

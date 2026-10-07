@@ -213,9 +213,13 @@ fn run_bidirectional(
                         None => continue,
                     };
 
+                    let edge_departure_minutes = options
+                        .departure_minutes
+                        .map(|dep| (dep + (dur_f[u as usize] / 60.0).floor() as u32) % 1440);
+
                     let edge_duration = {
                         let multiplier =
-                            traffic::congestion_multiplier(target_coord, options.departure_minutes);
+                            traffic::congestion_multiplier(target_coord, edge_departure_minutes);
                         edge.duration_s * multiplier
                     };
 
@@ -387,7 +391,18 @@ fn run_bidirectional(
         }
     }
 
-    let total_duration = dur_f[meeting_node as usize] + dur_b[meeting_node as usize];
+    let mut total_duration = dur_f[meeting_node as usize] + dur_b[meeting_node as usize];
+    for w in full_path.windows(3) {
+        if let (Some(c0), Some(c1), Some(c2)) = (
+            graph.get_coord(w[0]),
+            graph.get_coord(w[1]),
+            graph.get_coord(w[2]),
+        ) {
+            total_duration += crate::geo::bearing::calculate_turn_penalty(
+                c0.lat, c0.lon, c1.lat, c1.lon, c2.lat, c2.lon,
+            );
+        }
+    }
 
     Some(PathResult {
         path: full_path,

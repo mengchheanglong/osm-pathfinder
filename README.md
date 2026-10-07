@@ -3,7 +3,7 @@
 [![Rust Version](https://img.shields.io/badge/rust-1.70%2B-blue.svg?logo=rust)](https://www.rust-lang.org)
 [![Axum](https://img.shields.io/badge/framework-axum_0.7-orange.svg)](https://github.com/tokio-rs/axum)
 [![Tokio](https://img.shields.io/badge/runtime-tokio-blueviolet.svg)](https://tokio.rs)
-[![Tests Passing](https://img.shields.io/badge/tests-35%2F35%20passed-brightgreen.svg)]()
+[![Tests Passing](https://img.shields.io/badge/tests-39%2F39%20passed-brightgreen.svg)]()
 [![Clippy](https://img.shields.io/badge/clippy-0%20warnings-brightgreen.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -32,13 +32,18 @@ A high-performance OpenStreetMap routing engine written in Rust. Implements Cont
 
 ---
 
-## Algorithm Performance
+## Benchmark & Algorithm Performance
 
-Measured on the Cambodia road network (Phnom Penh to Siem Reap, 264.4 km):
+### Demo Graph Benchmark (44 Nodes, 98 Edges)
+
+The table below reflects execution against the built-in **Cambodia national highway skeleton network** (Phnom Penh to Siem Reap, 264.4 km):
+
+> [!NOTE]
+> **Dataset Transparency**: These microsecond figures and node counts (e.g., CH settling only 5 nodes) correspond to the built-in 44-node skeleton demo graph, not a full multi-million-node extract. The engine supports full ingestion of `cambodia-latest.osm.pbf` via streaming PBF parsing. Criterion benchmarks (`benches/pathfinding_bench.rs`) additionally evaluate algorithms on a synthetic 20×20 grid (400 nodes, 1,520 edges).
 
 | Algorithm | Heuristic / Technique | Query Latency | Visited Nodes | Search Space Pruning | Optimality |
 | :--- | :--- | :---: | :---: | :---: | :---: |
-| **Contraction Hierarchies** | Preprocessed shortcuts + upward query | **< 0.01 ms** | **5** | **~85%** | Guaranteed |
+| **Contraction Hierarchies** | Bounded witness shortcuts + upward query | **< 0.01 ms** | **5** | **~85%** | Guaranteed |
 | **A\* Search** | Haversine great-circle heuristic | **0.006 ms** | **17** | **~50%** | Guaranteed |
 | **Bidirectional A\*** | Balanced dual Haversine potentials | **0.014 ms** | **18** | **~48%** | Guaranteed |
 | **Bidirectional Dijkstra** | Dual expanding circular wavefronts | **0.013 ms** | **28** | **~20%** | Guaranteed |
@@ -48,27 +53,29 @@ Measured on the Cambodia road network (Phnom Penh to Siem Reap, 264.4 km):
 
 ## Mathematical Foundations
 
-### 1. Admissible Heuristic Proof for Dynamic Travel Time
+### 1. Admissible Heuristic Proof for Dynamic Travel Time (TDSP)
 In distance-based routing, the straight-line Haversine formula $d_{\text{geo}}(u, t)$ is admissible because spherical distance never exceeds actual road distance: $h_{\text{dist}}(u) = d_{\text{geo}}(u, t) \le d^{\ast}_{\text{dist}}(u, t)$.
 
-Under **Time-Dependent Shortest Path (TDSP)** routing where edge speeds fluctuate with congestion, admissibility is preserved by bounding the network with the theoretical maximum speed limit $v_{\max} = 120\text{ km/h} \approx 33.33\text{ m/s}$:
+Under **Time-Dependent Shortest Path (TDSP)** routing, edge speeds fluctuate dynamically with local time of day $\tau(u) = (\tau_{\text{dep}} + \lfloor \text{dur}[u] / 60 \rfloor) \bmod 1440$. Turn penalties $\text{cost}_{\text{turn}}(\Delta\theta) \ge 0$ are incorporated directly into relaxation. Admissibility is preserved by bounding the network with the theoretical maximum speed limit $v_{\max} = 120\text{ km/h} \approx 33.33\text{ m/s}$:
 
 $$h_{\text{time}}(u) = \frac{d_{\text{geo}}(u, t)}{v_{\max}}$$
 
-Since actual traversal speed on any road segment $e \in E$ satisfies $v(e, \tau) \le v_{\max}$, the time required to traverse the true shortest road path $P^{\ast}$ satisfies:
+Since actual traversal speed on any road segment $e \in E$ satisfies $v(e, \tau) \le v_{\max}$, and turn penalties are non-negative ($\text{cost}_{\text{turn}} \ge 0$), the time required to traverse the true shortest road path $P^{\ast}$ satisfies:
 
-$$d^{\ast}_{\text{time}}(u, t) = \sum_{e \in P^{\ast}} \frac{\text{len}(e)}{v(e, \tau_e)} \ge \sum_{e \in P^{\ast}} \frac{\text{len}(e)}{v_{\max}} = \frac{d^{\ast}_{\text{dist}}(u, t)}{v_{\max}} \ge \frac{d_{\text{geo}}(u, t)}{v_{\max}} = h_{\text{time}}(u)$$
+$$d^{\ast}_{\text{time}}(u, t) = \sum_{e \in P^{\ast}} \left(\frac{\text{len}(e)}{v(e, \tau_e)} + \text{cost}_{\text{turn}}(e)\right) \ge \sum_{e \in P^{\ast}} \frac{\text{len}(e)}{v_{\max}} = \frac{d^{\ast}_{\text{dist}}(u, t)}{v_{\max}} \ge \frac{d_{\text{geo}}(u, t)}{v_{\max}} = h_{\text{time}}(u)$$
 
 Because $h_{\text{time}}(u) \le d^{\ast}_{\text{time}}(u, t)$ strictly holds for all $u \in V$, the heuristic is admissible and monotonic, guaranteeing mathematical optimality for $A^*$ and Bidirectional $A^*$.
 
-### 2. Contraction Hierarchies (CH) Upward Search Invariant
-Vertices $v \in V$ are totally ordered by contraction rank $\pi(v) \in \{0, \dots, |V|-1\}$. When contracting node $v$, shortcut edges $(u, w)$ with weight $c(u, v) + c(v, w)$ are inserted if and only if path $\langle u, v, w \rangle$ is the unique shortest path among remaining uncontracted nodes.
+### 2. Contraction Hierarchies (CH) & Bounded Witness Search
+Vertices $v \in V$ are totally ordered by contraction rank $\pi(v) \in \{0, \dots, |V|-1\}$. When contracting node $v$, a shortcut edge $(u, w)$ with cost $c(u, v) + c(v, w)$ is added **only if necessary**. A **bounded Dijkstra witness search** is performed from $u$ to $w$ exploring strictly among uncontracted vertices ($\pi(x) > \pi(v)$) avoiding $v$:
+- If a witness path $P(u \leadsto w)$ exists with $\text{cost}(P) \le c(u, v) + c(v, w)$, the shortcut is omitted (pruned).
+- Otherwise, the shortcut edge $(u, w)$ is inserted.
 
 During query evaluation:
 - **Forward upward search** from origin $s$ explores only edges $(u \to v)$ where $\pi(u) < \pi(v)$.
 - **Backward upward search** from destination $t$ explores only edges $(w \to v)$ where $\pi(w) < \pi(v)$.
 
-**Peak Invariant**: On the shortest path $P = \langle s = x_0, x_1, \dots, x_k = t \rangle$, let $x_{\text{top}} = \arg\max_{x \in P} \pi(x)$ be the maximum-rank vertex. The subpath from $s$ to $x_{\text{top}}$ consists exclusively of upward edges in the forward graph, and the subpath from $t$ to $x_{\text{top}}$ consists exclusively of upward edges in the backward graph. Thus, both search frontiers meet at $x_{\text{top}}$, evaluating $\min_{u} (\text{dist}_f[u] + \text{dist}_b[u])$ with $O(\text{polylog } |V|)$ vertex visits without exploring downward edges.
+**Peak Invariant**: On the shortest path $P = \langle s = x_0, x_1, \dots, x_k = t \rangle$, let $x_{\text{top}} = \arg\max_{x \in P} \pi(x)$ be the maximum-rank vertex. The subpath from $s$ to $x_{\text{top}}$ consists exclusively of upward edges in the forward graph, and the subpath from $t$ to $x_{\text{top}}$ consists exclusively of upward edges in the backward graph. Both frontiers meet at $x_{\text{top}}$, evaluating $\min_{u} (\text{dist}_f[u] + \text{dist}_b[u])$ in sub-millisecond query time without exploring downward edges.
 
 ### 3. Geographic Bearing & Turn Penalties
 Forward compass azimuth $\theta \in [0^{\circ}, 360^{\circ})$ from $(\phi_1, \lambda_1)$ to $(\phi_2, \lambda_2)$:
@@ -126,14 +133,14 @@ POST /api/route
 Content-Type: application/json
 ```
 
-**Request Body:**
+**Request Body (TDSP Fastest Route with A\*):**
 ```json
 {
   "start_lat": 11.5564,
   "start_lon": 104.9282,
   "end_lat": 13.3671,
   "end_lon": 103.8448,
-  "algorithm": "contraction_hierarchies",
+  "algorithm": "astar",
   "metric": "time",
   "departure_time": "08:15"
 }
@@ -145,8 +152,10 @@ Content-Type: application/json
 | `end_lat`, `end_lon` | `f64` | *Required* | Destination WGS84 coordinate |
 | `algorithm` | `string` | `"astar"` | `contraction_hierarchies`, `astar`, `bidirectional_astar`, `dijkstra`, `bidirectional_dijkstra` |
 | `metric` | `string` | `"distance"` | Optimization goal: `"distance"` or `"time"` |
-| `departure_time` | `string` | `null` | Optional 24-hour departure time (e.g. `"08:15"`) for traffic-aware routing |
+| `departure_time` | `string` | `null` | Optional 24-hour departure time (e.g. `"08:15"`) for dynamic TDSP traffic. Supported for Dijkstra, A*, and Bidirectional search. (Omit for Contraction Hierarchies, which uses precomputed static shortcuts) |
 | `include_explored` | `bool` | `false` | Return visited node coordinates for wavefront inspection |
+
+> **Note on Contraction Hierarchies (CH)**: Supports both `metric: "distance"` and `metric: "time"` (free-flow). Because shortcut edge costs are precomputed statically, requests combining `contraction_hierarchies` with dynamic `departure_time` return `400 Bad Request`.
 
 **Response (excerpt):**
 ```json

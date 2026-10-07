@@ -83,6 +83,21 @@ pub fn turn_penalty_seconds(turn_angle_deg: f64) -> f64 {
     }
 }
 
+/// Computes junction turn delay penalty in seconds between two segments: `prev -> curr` and `curr -> next`.
+pub fn calculate_turn_penalty(
+    prev_lat: f64,
+    prev_lon: f64,
+    curr_lat: f64,
+    curr_lon: f64,
+    next_lat: f64,
+    next_lon: f64,
+) -> f64 {
+    let bearing_in = initial_bearing(prev_lat, prev_lon, curr_lat, curr_lon);
+    let bearing_out = initial_bearing(curr_lat, curr_lon, next_lat, next_lon);
+    let angle = turn_angle(bearing_in, bearing_out);
+    turn_penalty_seconds(angle)
+}
+
 /// Computes the destination coordinates given a starting point, initial bearing,
 /// and distance in meters.
 ///
