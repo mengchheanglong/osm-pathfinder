@@ -107,17 +107,18 @@ pub fn parse_pbf(path: &Path) -> Result<RoadGraph> {
     let reader = ElementReader::from_path(path)
         .with_context(|| format!("Failed to reopen PBF file: {}", path.display()))?;
 
-    reader.for_each(|element| {
-        if let Element::Node(node) = element {
+    reader.for_each(|element| match element {
+        Element::Node(node) => {
             if referenced_nodes.contains(&node.id()) {
                 builder.add_node(node.id(), node.lat(), node.lon());
             }
         }
-        if let Element::DenseNode(node) = element {
+        Element::DenseNode(node) => {
             if referenced_nodes.contains(&node.id) {
                 builder.add_node(node.id, node.lat(), node.lon());
             }
         }
+        _ => {}
     }).context("Failed to read PBF elements (pass 2)")?;
 
     debug!("Node coordinates loaded, adding edges");

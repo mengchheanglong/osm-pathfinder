@@ -1,37 +1,61 @@
 //! Benchmarks for pathfinding algorithms.
 //!
 //! Run with: `cargo bench`
-//!
-//! These benchmarks use Criterion for statistical analysis.
-//! They operate on small synthetic graphs — for real-world performance
-//! testing, use the full OSM dataset.
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use osm_pathfinder::graph::{GraphBuilder, RoadGraph};
+use osm_pathfinder::pathfinding::{astar_search, dijkstra_search};
 
-fn create_grid_graph(size: usize) -> osm_pathfinder::graph::RoadGraph {
-    // Note: This requires making graph types public in lib.
-    // For now, this is a placeholder that will be filled in
-    // once the crate is structured as a library + binary.
-    todo!("Implement grid graph generation for benchmarks")
+/// Generates a synthetic NxN grid graph for benchmarking.
+fn create_grid_graph(size: usize) -> RoadGraph {
+    let mut builder = GraphBuilder::with_capacity(size * size);
+
+    for i in 0..size {
+        for j in 0..size {
+            let osm_id = (i * size + j + 1) as i64;
+            let lat = 11.0 + (i as f64) * 0.005;
+            let lon = 104.0 + (j as f64) * 0.005;
+            builder.add_node(osm_id, lat, lon);
+        }
+    }
+
+    for i in 0..size {
+        for j in 0..size {
+            let id = (i * size + j + 1) as i64;
+            if j + 1 < size {
+                builder.add_way(&[id, id + 1], false, 50.0);
+            }
+            if i + 1 < size {
+                builder.add_way(&[id, id + size as i64], false, 50.0);
+            }
+        }
+    }
+
+    builder.build()
 }
 
-fn bench_dijkstra(c: &mut Criterion) {
-    c.bench_function("dijkstra_placeholder", |b| {
+fn bench_pathfinding(c: &mut Criterion) {
+    let grid_size = 20; // 400 nodes
+    let graph = create_grid_graph(grid_size);
+    let start_node = 0;
+    let end_node = (grid_size * grid_size - 1) as u32;
+
+    let mut group = c.benchmark_group("pathfinding_20x20_grid");
+
+    group.bench_function("dijkstra", |b| {
         b.iter(|| {
-            // Placeholder: will benchmark actual algorithm once
-            // the crate lib interface is finalized
-            black_box(42)
+            dijkstra_search(black_box(&graph), black_box(start_node), black_box(end_node))
         });
     });
-}
 
-fn bench_astar(c: &mut Criterion) {
-    c.bench_function("astar_placeholder", |b| {
+    group.bench_function("astar", |b| {
         b.iter(|| {
-            black_box(42)
+            astar_search(black_box(&graph), black_box(start_node), black_box(end_node))
         });
     });
+
+    group.finish();
 }
 
-criterion_group!(benches, bench_dijkstra, bench_astar);
+criterion_group!(benches, bench_pathfinding);
 criterion_main!(benches);

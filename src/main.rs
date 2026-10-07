@@ -1,22 +1,17 @@
-//! # osm-pathfinder
+//! # osm-pathfinder binary
 //!
 //! A high-performance OpenStreetMap routing engine and navigation API.
 //!
-//! This application parses OSM PBF files, constructs an in-memory road graph,
+//! This executable parses OSM PBF files, constructs an in-memory road graph,
 //! and serves shortest-path queries via a RESTful HTTP API.
-
-mod api;
-mod geo;
-mod graph;
-mod osm;
-mod pathfinding;
-mod spatial;
 
 use anyhow::{Context, Result};
 use clap::Parser;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::info;
+
+use osm_pathfinder::{api, osm, spatial, AppState};
 
 /// Command-line arguments for osm-pathfinder.
 #[derive(Parser, Debug)]
@@ -37,12 +32,6 @@ struct Args {
     /// Port to bind the server to.
     #[arg(short, long, default_value_t = 3000, env = "SERVER_PORT")]
     port: u16,
-}
-
-/// Shared application state passed to all API handlers.
-pub struct AppState {
-    pub road_graph: graph::RoadGraph,
-    pub spatial_index: spatial::SpatialIndex,
 }
 
 #[tokio::main]

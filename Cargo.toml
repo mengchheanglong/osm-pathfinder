@@ -34,7 +34,7 @@ thiserror = "1"
 anyhow = "1"
 
 # CLI argument parsing
-clap = { version = "4", features = ["derive"] }
+clap = { version = "4", features = ["derive", "env"] }
 
 # Geographic utilities
 geo = "0.28"
