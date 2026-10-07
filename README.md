@@ -202,30 +202,58 @@ GET /api/graph/stats
 
 ## Architecture
 
-```text
-  OSM PBF File (.osm.pbf)
-           │
-           ▼
-  Two-Pass Streaming Parser (highway filtering, speed limits, oneway)
-           │
-           ▼
-  In-Memory RoadGraph ────────────┬─────────────────────────────┐
-  (Flat adjacency list + coords)  ▼                             ▼
-                           Spatial Index (R-Tree)    Contraction Hierarchies
-                           (Coordinate snapping)     (Shortcut preprocessing)
-                                  │                             │
-                                  └──────────────┬──────────────┘
-                                                 ▼
-                                        Pathfinding Engine
-                                        ├── Contraction Hierarchies
-                                        ├── A* (Haversine heuristic)
-                                        ├── Bidirectional A* & Dijkstra
-                                        ├── Isochrone Contours
-                                        └── TDSP Traffic Delays
-                                                 │
-                                                 ▼
-                                           Axum REST API
-                                        (/api/route, /api/isochrone)
+```mermaid
+flowchart TD
+    subgraph S1 [" 1. DATA INGESTION "]
+        direction LR
+        OSM["<b>OpenStreetMap Data</b><br/><code>.osm.pbf</code> raw binary extract"]
+        PARSER["<b>Streaming Two-Pass Parser</b><br/>Highway filtering & speed limit inference"]
+        OSM ==> PARSER
+    end
+
+    subgraph S2 [" 2. IN-MEMORY GRAPH TOPOLOGY "]
+        direction TB
+        ROADGRAPH["<b>RoadGraph Storage</b><br/>Flat adjacency list <code>Vec&lt;Vec&lt;Edge&gt;&gt;</code> & coordinate store"]
+        subgraph INDICES [" Acceleration Structures "]
+            direction LR
+            RTREE["<b>Spatial Index (R-Tree)</b><br/>O(log N) coordinate snapping"]
+            CH["<b>Contraction Hierarchies</b><br/>Priority ranking & shortcut generation"]
+        end
+        ROADGRAPH --> RTREE
+        ROADGRAPH --> CH
+    end
+
+    subgraph S3 [" 3. PATHFINDING & TRAFFIC ENGINE "]
+        direction LR
+        SOLVER["<b>Multi-Algorithm Solver</b><br/>• Contraction Hierarchies (Upward Query)<br/>• A* Search (Haversine Heuristic)<br/>• Bidirectional A* & Dijkstra<br/>• Isochrone Polygons (Bounded Dijkstra)"]
+        TRAFFIC["<b>Traffic & Turn Dynamics</b><br/>• Time-Dependent (TDSP) Gaussian Peaks<br/>• Urban Spatial Radial Falloff<br/>• Deflection Turn Penalties"]
+        SOLVER <==> TRAFFIC
+    end
+
+    subgraph S4 [" 4. ASYNC HTTP API "]
+        AXUM["<b>Axum 0.7 REST Server (Tokio)</b><br/><code>POST /api/route</code> • <code>POST /api/isochrone</code> • <code>GET /api/graph/stats</code>"]
+    end
+
+    PARSER ==> ROADGRAPH
+    RTREE --> SOLVER
+    CH --> SOLVER
+    ROADGRAPH --> SOLVER
+    SOLVER ==> AXUM
+
+    style S1 fill:#0f172a,stroke:#38bdf8,stroke-width:1.5px,color:#94a3b8
+    style S2 fill:#0f172a,stroke:#3b82f6,stroke-width:1.5px,color:#94a3b8
+    style INDICES fill:#1e293b,stroke:#64748b,stroke-width:1px,stroke-dasharray: 4 4,color:#94a3b8
+    style S3 fill:#0f172a,stroke:#a855f7,stroke-width:1.5px,color:#94a3b8
+    style S4 fill:#0f172a,stroke:#10b981,stroke-width:1.5px,color:#94a3b8
+
+    style OSM fill:#1e293b,stroke:#38bdf8,stroke-width:1.5px,color:#f8fafc
+    style PARSER fill:#1e293b,stroke:#38bdf8,stroke-width:1.5px,color:#f8fafc
+    style ROADGRAPH fill:#1e293b,stroke:#3b82f6,stroke-width:2px,color:#f8fafc
+    style RTREE fill:#1e293b,stroke:#38bdf8,stroke-width:1.5px,color:#f8fafc
+    style CH fill:#1e293b,stroke:#f59e0b,stroke-width:2px,color:#f8fafc
+    style SOLVER fill:#1e1b4b,stroke:#a855f7,stroke-width:2px,color:#f8fafc
+    style TRAFFIC fill:#1e1b4b,stroke:#c084fc,stroke-width:1.5px,color:#f8fafc
+    style AXUM fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#f8fafc
 ```
 
 ---
