@@ -83,6 +83,70 @@ body, html {
   }
 }
 
+/* Sheet handle bar & toggle button */
+.sheet-handle-bar {
+  display: none;
+  width: 100%;
+  padding: 8px 0 2px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  background: transparent;
+  user-select: none;
+}
+
+.sheet-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.28);
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.sheet-handle-bar:hover .sheet-handle,
+.sheet-handle-bar:active .sheet-handle {
+  background: rgba(255, 255, 255, 0.55);
+  transform: scaleX(1.15);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.panel-toggle-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  width: 30px;
+  height: 30px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.panel-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--text-primary);
+}
+
+.chevron-icon {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.control-panel.collapsed .chevron-icon {
+  transform: rotate(180deg);
+}
+
 /* Header */
 .panel-header {
   padding: 16px 18px 14px;
@@ -731,10 +795,148 @@ body, html {
     left: 0;
     right: 0;
     width: 100%;
-    max-height: 65vh;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    max-height: 82vh;
+    border-radius: 20px 20px 0 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.6);
+    transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: transform;
+    padding-bottom: env(safe-area-inset-bottom, 8px);
   }
+
+  .sheet-handle-bar {
+    display: flex;
+  }
+
+  .panel-toggle-btn {
+    display: flex;
+  }
+
+  /* Collapsed peek state on mobile: only the handle + header is visible (~66px) */
+  .control-panel.collapsed {
+    transform: translateY(calc(100% - 66px));
+  }
+
+  .panel-header {
+    padding: 6px 14px 10px;
+    cursor: pointer;
+  }
+
+  .brand {
+    gap: 10px;
+  }
+
+  .brand h1 {
+    font-size: 0.95rem;
+  }
+
+  .subtitle {
+    display: none; /* Hide subtitle to preserve horizontal space */
+  }
+
+  .logo-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+  }
+
+  .badge {
+    font-size: 0.65rem;
+    padding: 3px 7px;
+  }
+
+  .panel-section {
+    padding: 10px 14px;
+  }
+
+  .mode-switcher-section {
+    padding: 6px 14px;
+  }
+
+  .mode-btn {
+    padding: 7px 10px;
+    font-size: 0.76rem;
+  }
+
+  .point-row {
+    padding: 7px 10px;
+    gap: 8px;
+  }
+
+  .point-label {
+    font-size: 0.68rem;
+  }
+
+  .coords-text {
+    font-size: 0.75rem;
+  }
+
+  .algorithm-grid {
+    gap: 6px;
+  }
+
+  .algo-card {
+    padding: 8px 10px;
+  }
+
+  .algo-title {
+    font-size: 0.775rem;
+  }
+
+  .algo-desc {
+    font-size: 0.66rem;
+  }
+
+  .toggle-btn {
+    padding: 6px 8px;
+    font-size: 0.74rem;
+  }
+
+  .time-picker-row {
+    padding: 6px 10px;
+    gap: 8px;
+  }
+
+  .time-label {
+    font-size: 0.72rem;
+  }
+
+  .select-sm {
+    padding: 5px 8px;
+    font-size: 0.75rem;
+  }
+
+  /* Sticky Action Buttons bar at the bottom of the sheet */
+  .button-group {
+    position: sticky;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.96);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid var(--border-color);
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.4);
+    margin-top: 6px;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+    z-index: 20;
+  }
+
+  .btn {
+    padding: 9px 12px;
+    font-size: 0.8rem;
+  }
+
+  /* Instruction banner positioned at top of screen on mobile */
   .instruction-banner {
-    display: none;
+    top: 12px;
+    bottom: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.72rem;
+    padding: 6px 12px;
+    max-width: 90%;
+    text-align: center;
+    white-space: normal;
   }
 }

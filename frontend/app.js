@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
     zoomControl: false
   }).setView([12.5657, 104.9910], 7); // Center of Cambodia
 
-  L.control.zoom({ position: 'bottomright' }).addTo(map);
+  L.control.zoom({ position: 'topright' }).addTo(map);
 
   // Modern OpenStreetMap tile layer
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -94,6 +94,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // -------------------------------------------------------------------------
   // DOM Elements
   // -------------------------------------------------------------------------
+  const controlPanel = document.getElementById('control-panel');
+  const sheetHandleBar = document.getElementById('sheet-handle-bar');
+  const panelToggleBtn = document.getElementById('panel-toggle-btn');
+  const panelHeader = document.getElementById('panel-header');
   const graphBadge = document.getElementById('graph-badge');
   const modeRoutingBtn = document.getElementById('mode-routing-btn');
   const modeIsochroneBtn = document.getElementById('mode-isochrone-btn');
@@ -127,6 +131,59 @@ document.addEventListener('DOMContentLoaded', () => {
   const isoLegendList = document.getElementById('iso-legend-list');
   const chipBtns = document.querySelectorAll('.chip-btn');
   const instructionBanner = document.querySelector('.instruction-banner');
+
+  // -------------------------------------------------------------------------
+  // Mobile Panel Collapse / Expand Controls
+  // -------------------------------------------------------------------------
+  function togglePanel(collapseOnly = false) {
+    if (!controlPanel) return;
+    if (collapseOnly) {
+      controlPanel.classList.add('collapsed');
+    } else {
+      controlPanel.classList.toggle('collapsed');
+    }
+  }
+
+  function expandPanel() {
+    if (controlPanel) controlPanel.classList.remove('collapsed');
+  }
+
+  if (panelToggleBtn) {
+    panelToggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      togglePanel();
+    });
+  }
+
+  if (sheetHandleBar) {
+    sheetHandleBar.addEventListener('click', () => {
+      togglePanel();
+    });
+
+    let touchStartY = 0;
+    sheetHandleBar.addEventListener('touchstart', (e) => {
+      touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    sheetHandleBar.addEventListener('touchend', (e) => {
+      const touchEndY = e.changedTouches[0].clientY;
+      const diffY = touchEndY - touchStartY;
+      if (diffY > 30) {
+        togglePanel(true); // Swipe down
+      } else if (diffY < -30) {
+        expandPanel();     // Swipe up
+      }
+    }, { passive: true });
+  }
+
+  if (panelHeader) {
+    panelHeader.addEventListener('click', (e) => {
+      if (e.target.closest('#panel-toggle-btn') || e.target.closest('select') || e.target.closest('button')) return;
+      if (controlPanel && controlPanel.classList.contains('collapsed')) {
+        expandPanel();
+      }
+    });
+  }
 
   // -------------------------------------------------------------------------
   // Fetch Graph Stats on Startup
@@ -401,6 +458,10 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       if (isoResultsCard) isoResultsCard.classList.remove('hidden');
     }
+
+    if (window.innerWidth <= 640) {
+      togglePanel(true);
+    }
   }
 
   function setStartPoint(latlng) {
@@ -581,9 +642,16 @@ document.addEventListener('DOMContentLoaded', () => {
     metricVisited.textContent = data.nodes_visited.toLocaleString();
     metricLatency.textContent = data.query_time_ms < 1
       ? `${(data.query_time_ms * 1000).toFixed(0)} μs`
-      : `${data.query_time_ms.toFixed(2)} ms`;
-
     metricsCard.classList.remove('hidden');
+
+    if (graphBadge) {
+      graphBadge.textContent = `${distKm} km • ${durationText}`;
+      graphBadge.classList.add('ready');
+    }
+
+    if (window.innerWidth <= 640) {
+      togglePanel(true);
+    }
   }
 
   // -------------------------------------------------------------------------

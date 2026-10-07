@@ -20,20 +20,30 @@
   <div id="map"></div>
 
   <!-- Sidebar Overlay / Floating Controller -->
-  <aside class="control-panel">
-    <header class="panel-header">
+  <aside class="control-panel" id="control-panel">
+    <div class="sheet-handle-bar" id="sheet-handle-bar" title="Tap to toggle panel">
+      <div class="sheet-handle"></div>
+    </div>
+    <header class="panel-header" id="panel-header">
       <div class="brand">
         <div class="logo-icon">
-          <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
             <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
           </svg>
         </div>
-        <div>
+        <div class="brand-text">
           <h1>osm-pathfinder</h1>
           <p class="subtitle">High-performance Rust Routing Engine</p>
         </div>
       </div>
-      <div id="graph-badge" class="badge">Loading graph...</div>
+      <div class="header-actions">
+        <div id="graph-badge" class="badge">Loading...</div>
+        <button type="button" id="panel-toggle-btn" class="panel-toggle-btn" aria-label="Toggle panel" title="Minimize or expand panel">
+          <svg class="chevron-icon" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+      </div>
     </header>
 
     <!-- Mode Switcher -->
