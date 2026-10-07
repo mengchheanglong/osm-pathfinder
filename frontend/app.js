@@ -642,6 +642,8 @@ document.addEventListener('DOMContentLoaded', () => {
     metricVisited.textContent = data.nodes_visited.toLocaleString();
     metricLatency.textContent = data.query_time_ms < 1
       ? `${(data.query_time_ms * 1000).toFixed(0)} μs`
+      : `${data.query_time_ms.toFixed(2)} ms`;
+
     metricsCard.classList.remove('hidden');
 
     if (graphBadge) {
