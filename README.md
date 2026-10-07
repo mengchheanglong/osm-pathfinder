@@ -78,9 +78,9 @@ Performance measured over Cambodia's road network topology (synthetic and real-w
 ## Mathematical Foundations
 
 ### 1. Admissible Heuristic Proof for Travel Time
-In standard distance routing, the straight-line Haversine formula is admissible because great-circle distance $d_{\text{geo}}(u, t)$ never exceeds physical road distance $d^*(u, t)$ on a sphere:
+In standard distance routing, the straight-line Haversine formula is admissible because great-circle distance $d_{\text{geo}}(u, t)$ never exceeds physical road distance $d^{\ast}(u, t)$ on a sphere:
 
-$$h_{\text{dist}}(u) = d_{\text{geo}}(u, t) \le d^*_{\text{dist}}(u, t)$$
+$$h_{\text{dist}}(u) = d_{\text{geo}}(u, t) \le d^{\ast}_{\text{dist}}(u, t)$$
 
 When optimizing for **travel duration** under time-dependent traffic conditions, admissibility is preserved by bounding the network with the maximum conceivable network speed $v_{\text{max}} = 120\text{ km/h} \approx 33.33\text{ m/s}$:
 
@@ -88,7 +88,7 @@ $$h_{\text{time}}(u) = \frac{d_{\text{geo}}(u, t)}{v_{\text{max}}}$$
 
 Because actual traversal speed on any segment $e \in E$ satisfies $v(e, \tau) \le v_{\text{max}}$, it follows that:
 
-$$\frac{d^*(u, t)}{\max v} \le d^*_{\text{time}}(u, t) \implies h_{\text{time}}(u) \le d^*_{\text{time}}(u)$$
+$$\frac{d^{\ast}(u, t)}{v_{\text{max}}} \le d^{\ast}_{\text{time}}(u, t) \implies h_{\text{time}}(u) \le d^{\ast}_{\text{time}}(u)$$
 
 This guarantees that A\* and Bi-directional A\* never overestimate cost-to-target, preserving strict mathematical optimality.
 
@@ -101,13 +101,13 @@ During query evaluation:
 - Both frontiers monotonically climb the rank hierarchy, meeting at the maximum rank vertex on the optimal path.
 
 ### 3. Geographic Bearing & Deflection Angle
-Initial compass forward azimuth $\theta \in [0^\circ, 360^\circ)$ from $(\phi_1, \lambda_1)$ to $(\phi_2, \lambda_2)$:
+Initial compass forward azimuth $\theta \in [0^{\circ}, 360^{\circ})$ from $(\phi_1, \lambda_1)$ to $(\phi_2, \lambda_2)$:
 
-$$\theta = \operatorname{atan2}\left(\sin \Delta\lambda \cos \phi_2, \; \cos \phi_1 \sin \phi_2 - \sin \phi_1 \cos \phi_2 \cos \Delta\lambda\right)$$
+$$\theta = \text{atan2}\left(\sin \Delta\lambda \cos \phi_2, \; \cos \phi_1 \sin \phi_2 - \sin \phi_1 \cos \phi_2 \cos \Delta\lambda\right)$$
 
-The signed junction turn angle $\Delta\theta \in [-180^\circ, 180^\circ]$ between incoming segment $\theta_1$ and outgoing segment $\theta_2$:
+The signed junction turn angle $\Delta\theta \in [-180^{\circ}, 180^{\circ}]$ between incoming segment $\theta_1$ and outgoing segment $\theta_2$:
 
-$$\Delta\theta = (\theta_2 - \theta_1 + 540^\circ) \bmod 360^\circ - 180^\circ$$
+$$\Delta\theta = (\theta_2 - \theta_1 + 540^{\circ}) \bmod 360^{\circ} - 180^{\circ}$$
 
 ---
 
