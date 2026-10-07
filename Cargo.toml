@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["Your Name <your.email@example.com>"]
 description = "A high-performance OpenStreetMap routing engine and navigation API built with Rust"
 license = "MIT"
-repository = "https://github.com/yourusername/osm-pathfinder"
+repository = "https://github.com/mengchheanglong/osm-pathfinder"
 keywords = ["routing", "openstreetmap", "pathfinding", "dijkstra", "astar"]
 categories = ["algorithms", "science::geo"]
 

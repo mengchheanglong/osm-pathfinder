@@ -37,7 +37,7 @@ osm-pathfinder is a highly optimized routing engine that parses OpenStreetMap (O
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/yourusername/osm-pathfinder.git
+   git clone https://github.com/mengchheanglong/osm-pathfinder.git
    cd osm-pathfinder
    ```
 
