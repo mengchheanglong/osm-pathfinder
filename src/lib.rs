@@ -11,6 +11,7 @@ pub mod graph;
 pub mod osm;
 pub mod pathfinding;
 pub mod spatial;
+pub mod traffic;
 
 /// Shared application state passed to all API handlers.
 pub struct AppState {

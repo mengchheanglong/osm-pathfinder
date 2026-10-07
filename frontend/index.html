@@ -100,6 +100,34 @@
       </div>
     </div>
 
+    <!-- Optimization & Traffic Simulation -->
+    <div class="panel-section">
+      <label class="field-label">
+        <span>Optimization & Traffic</span>
+        <span class="hint">TDSP Simulation</span>
+      </label>
+      <div class="traffic-controls">
+        <div class="toggle-group">
+          <button type="button" id="metric-dist-btn" class="toggle-btn active" data-metric="distance">Shortest Distance</button>
+          <button type="button" id="metric-time-btn" class="toggle-btn" data-metric="time">Fastest Time</button>
+        </div>
+        <div class="time-picker-row">
+          <label for="traffic-time" class="time-label">Departure:</label>
+          <select id="traffic-time" class="select-input select-sm">
+            <option value="">Free Flow (No traffic)</option>
+            <option value="02:00">02:00 AM (Midnight Free Flow)</option>
+            <option value="08:15" selected>08:15 AM (Morning Peak Rush)</option>
+            <option value="12:30">12:30 PM (Midday Normal)</option>
+            <option value="17:45">05:45 PM (Evening Peak Rush)</option>
+          </select>
+        </div>
+        <label class="checkbox-row">
+          <input type="checkbox" id="show-wavefront-toggle" checked>
+          <span>Visualize algorithm search wavefront</span>
+        </label>
+      </div>
+    </div>
+
     <!-- Action Buttons -->
     <div class="panel-section button-group">
       <button id="calc-route-btn" class="btn btn-primary" disabled>

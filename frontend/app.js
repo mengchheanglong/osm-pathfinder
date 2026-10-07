@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let endMarker = null;
   let routePolyline = null;
   let selectedAlgorithm = 'astar';
+  let selectedMetric = 'distance';
+  let selectedDepartureTime = '08:15';
 
   // -------------------------------------------------------------------------
   // Cambodia Highway Presets
@@ -62,6 +64,9 @@ document.addEventListener('DOMContentLoaded', () => {
     attribution: '© OpenStreetMap contributors'
   }).addTo(map);
 
+  // Layer group for rendering algorithm search wavefronts
+  const wavefrontLayer = L.layerGroup().addTo(map);
+
   // Custom Pin Icons
   const createPinIcon = (colorClass) => {
     return L.divIcon({
@@ -90,6 +95,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const compareTbody = document.getElementById('compare-tbody');
   const compareInsight = document.getElementById('compare-insight');
   const algoCards = document.querySelectorAll('.algo-card');
+  const metricDistBtn = document.getElementById('metric-dist-btn');
+  const metricTimeBtn = document.getElementById('metric-time-btn');
+  const trafficTimeSelect = document.getElementById('traffic-time');
+  const showWavefrontToggle = document.getElementById('show-wavefront-toggle');
 
   // -------------------------------------------------------------------------
   // Fetch Graph Stats on Startup
@@ -111,6 +120,42 @@ document.addEventListener('DOMContentLoaded', () => {
   fetchGraphStats();
 
   // -------------------------------------------------------------------------
+  // Optimization & Traffic Controls
+  // -------------------------------------------------------------------------
+  if (metricDistBtn && metricTimeBtn) {
+    metricDistBtn.addEventListener('click', () => {
+      metricDistBtn.classList.add('active');
+      metricTimeBtn.classList.remove('active');
+      selectedMetric = 'distance';
+      if (startLatLng && endLatLng) calculateRoute();
+    });
+
+    metricTimeBtn.addEventListener('click', () => {
+      metricTimeBtn.classList.add('active');
+      metricDistBtn.classList.remove('active');
+      selectedMetric = 'time';
+      if (startLatLng && endLatLng) calculateRoute();
+    });
+  }
+
+  if (trafficTimeSelect) {
+    trafficTimeSelect.addEventListener('change', (e) => {
+      selectedDepartureTime = e.target.value;
+      if (startLatLng && endLatLng) calculateRoute();
+    });
+  }
+
+  if (showWavefrontToggle) {
+    showWavefrontToggle.addEventListener('change', () => {
+      if (!showWavefrontToggle.checked) {
+        wavefrontLayer.clearLayers();
+      } else if (startLatLng && endLatLng) {
+        calculateRoute();
+      }
+    });
+  }
+
+  // -------------------------------------------------------------------------
   // Map Click Handler (Drop Pins)
   // -------------------------------------------------------------------------
   map.on('click', (e) => {
@@ -123,7 +168,6 @@ document.addEventListener('DOMContentLoaded', () => {
       setEndPoint([lat, lon]);
       calculateRoute();
     } else {
-      // If both already set, update destination to new click
       setEndPoint([lat, lon]);
       calculateRoute();
     }
@@ -222,6 +266,8 @@ document.addEventListener('DOMContentLoaded', () => {
     calcRouteBtn.disabled = true;
     calcRouteBtn.textContent = 'Calculating...';
 
+    const wantsWavefront = showWavefrontToggle ? showWavefrontToggle.checked : true;
+
     try {
       const res = await fetch('/api/route', {
         method: 'POST',
@@ -231,7 +277,10 @@ document.addEventListener('DOMContentLoaded', () => {
           start_lon: startLatLng[1],
           end_lat: endLatLng[0],
           end_lon: endLatLng[1],
-          algorithm: selectedAlgorithm
+          algorithm: selectedAlgorithm,
+          metric: selectedMetric,
+          departure_time: selectedDepartureTime || undefined,
+          include_explored: wantsWavefront
         })
       });
 
@@ -268,9 +317,24 @@ document.addEventListener('DOMContentLoaded', () => {
     routePolyline = L.polyline(latlngs, {
       color: '#06b6d4',
       weight: 5,
-      opacity: 0.9,
+      opacity: 0.95,
       lineJoin: 'round'
     }).addTo(map);
+
+    // Render search wavefront exploration dots
+    wavefrontLayer.clearLayers();
+    if (showWavefrontToggle && showWavefrontToggle.checked && data.explored && data.explored.length > 0) {
+      const dotColor = selectedAlgorithm.includes('dijkstra') ? '#f59e0b' : '#38bdf8';
+      data.explored.forEach((pt) => {
+        L.circleMarker([pt[1], pt[0]], {
+          radius: 3.5,
+          color: dotColor,
+          fillColor: dotColor,
+          fillOpacity: 0.45,
+          weight: 0
+        }).addTo(wavefrontLayer);
+      });
+    }
 
     // Zoom to fit path
     map.fitBounds(routePolyline.getBounds(), { padding: [50, 50] });
@@ -323,7 +387,10 @@ document.addEventListener('DOMContentLoaded', () => {
             start_lon: startLatLng[1],
             end_lat: endLatLng[0],
             end_lon: endLatLng[1],
-            algorithm: algo.id
+            algorithm: algo.id,
+            metric: selectedMetric,
+            departure_time: selectedDepartureTime || undefined,
+            include_explored: false
           })
         });
 
@@ -357,14 +424,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const astarResult = results.find((r) => r.algorithm === 'astar');
     const biAstarResult = results.find((r) => r.algorithm === 'bidirectional_astar');
 
-    if (dijkstraResult && astarResult) {
+    if (dijkstraResult && astarResult && dijkstraResult.nodes_visited > 0) {
       const reduction = (
         ((dijkstraResult.nodes_visited - astarResult.nodes_visited) /
           dijkstraResult.nodes_visited) *
         100
       ).toFixed(1);
 
-      let insight = `✨ <strong>Heuristic Pruning:</strong> A* examined <strong>${reduction}%</strong> fewer nodes than Dijkstra while yielding identical shortest distance.`;
+      let insight = `✨ <strong>Heuristic Pruning:</strong> A* examined <strong>${reduction}%</strong> fewer nodes than Dijkstra while yielding identical optimal distance.`;
 
       if (biAstarResult && biAstarResult.nodes_visited < astarResult.nodes_visited) {
         const biReduction = (
@@ -372,7 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
             astarResult.nodes_visited) *
           100
         ).toFixed(1);
-        insight += `<br>🚀 <strong>Dual wavefronts:</strong> Bi-directional A* further reduced search volume by another <strong>${biReduction}%</strong>.`;
+        insight += `<br>🚀 <strong>Dual Wavefronts:</strong> Bi-directional A* further reduced search space by another <strong>${biReduction}%</strong>.`;
       }
 
       compareInsight.innerHTML = insight;
@@ -401,6 +468,7 @@ document.addEventListener('DOMContentLoaded', () => {
       map.removeLayer(routePolyline);
       routePolyline = null;
     }
+    wavefrontLayer.clearLayers();
 
     startCoordsDisplay.textContent = 'Click map or pick preset';
     endCoordsDisplay.textContent = 'Click map or pick preset';

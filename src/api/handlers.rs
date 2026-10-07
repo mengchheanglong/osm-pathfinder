@@ -8,7 +8,8 @@ use axum::Json;
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
-use crate::pathfinding::{self, Algorithm, PathResult};
+use crate::pathfinding::{self, Algorithm, CostMetric, PathResult, RoutingOptions};
+use crate::traffic;
 use crate::AppState;
 
 // ---------------------------------------------------------------------------
@@ -71,6 +72,14 @@ pub struct RouteRequest {
     /// Algorithm to use. Defaults to A* if not specified.
     #[serde(default = "default_algorithm")]
     pub algorithm: Algorithm,
+    /// Cost metric optimization (distance vs. time).
+    #[serde(default)]
+    pub metric: CostMetric,
+    /// Optional departure time in 24h format (e.g. "08:15", "17:30") for traffic simulation.
+    pub departure_time: Option<String>,
+    /// Whether to include coordinates of visited nodes for wavefront visualization.
+    #[serde(default)]
+    pub include_explored: bool,
 }
 
 fn default_algorithm() -> Algorithm {
@@ -82,6 +91,9 @@ fn default_algorithm() -> Algorithm {
 pub struct RouteResponse {
     /// GeoJSON-compatible path coordinates `[[lon, lat], ...]`.
     pub path: Vec<[f64; 2]>,
+    /// Visited node coordinates during search expansion (GeoJSON format `[[lon, lat], ...]`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub explored: Vec<[f64; 2]>,
     /// Total distance in meters.
     pub distance_m: f64,
     /// Estimated travel duration in seconds.
@@ -92,6 +104,10 @@ pub struct RouteResponse {
     pub query_time_ms: f64,
     /// Algorithm used.
     pub algorithm: String,
+    /// Metric optimized for ("distance" or "time").
+    pub metric: String,
+    /// Departure time if simulated.
+    pub departure_time: Option<String>,
     /// Start node snapped coordinate.
     pub start_snapped: [f64; 2],
     /// End node snapped coordinate.
@@ -106,10 +122,10 @@ pub struct ErrorResponse {
 
 /// POST /api/route
 ///
-/// Calculates the shortest path between two geographic coordinates.
+/// Calculates the shortest or fastest path between two geographic coordinates.
 ///
-/// The provided coordinates are snapped to the nearest graph nodes
-/// via the spatial index before running the selected pathfinding algorithm.
+/// Supports time-dependent traffic modeling, multiple algorithms (Dijkstra, A*,
+/// Bidirectional A*, Bidirectional Dijkstra), and search wavefront visualization.
 pub async fn calculate_route(
     State(state): State<Arc<AppState>>,
     Json(request): Json<RouteRequest>,
@@ -150,22 +166,54 @@ pub async fn calculate_route(
             )
         })?;
 
+    let departure_minutes = request
+        .departure_time
+        .as_deref()
+        .and_then(traffic::parse_time_of_day);
+
+    let routing_options = RoutingOptions {
+        metric: request.metric,
+        departure_minutes,
+        collect_explored: request.include_explored,
+    };
+
     info!(
         algorithm = %request.algorithm,
+        metric = ?request.metric,
+        departure_time = ?request.departure_time,
         start_node,
         end_node,
         "Running pathfinding query"
     );
 
-    // Run the selected algorithm
     let result: Option<PathResult> = match request.algorithm {
-        Algorithm::Dijkstra => pathfinding::dijkstra_search(&state.road_graph, start_node, end_node),
-        Algorithm::Astar => pathfinding::astar_search(&state.road_graph, start_node, end_node),
+        Algorithm::Dijkstra => pathfinding::dijkstra_search_with_options(
+            &state.road_graph,
+            start_node,
+            end_node,
+            &routing_options,
+        ),
+        Algorithm::Astar => pathfinding::astar_search_with_options(
+            &state.road_graph,
+            start_node,
+            end_node,
+            &routing_options,
+        ),
         Algorithm::BidirectionalDijkstra => {
-            pathfinding::bidirectional_dijkstra_search(&state.road_graph, start_node, end_node)
+            pathfinding::bidirectional_dijkstra_search_with_options(
+                &state.road_graph,
+                start_node,
+                end_node,
+                &routing_options,
+            )
         }
         Algorithm::BidirectionalAstar => {
-            pathfinding::bidirectional_astar_search(&state.road_graph, start_node, end_node)
+            pathfinding::bidirectional_astar_search_with_options(
+                &state.road_graph,
+                start_node,
+                end_node,
+                &routing_options,
+            )
         }
     };
 
@@ -187,13 +235,27 @@ pub async fn calculate_route(
                 .map(|c| [c.lon, c.lat])
                 .collect();
 
+            let explored: Vec<[f64; 2]> = path_result
+                .explored_coordinates
+                .iter()
+                .map(|c| [c.lon, c.lat])
+                .collect();
+
+            let metric_str = match request.metric {
+                CostMetric::Distance => "distance".to_string(),
+                CostMetric::Time => "time".to_string(),
+            };
+
             Ok(Json(RouteResponse {
                 path,
+                explored,
                 distance_m: path_result.distance_m,
                 duration_s: path_result.duration_s,
                 nodes_visited: path_result.nodes_visited,
                 query_time_ms: path_result.query_time_ms(),
                 algorithm: path_result.algorithm.to_string(),
+                metric: metric_str,
+                departure_time: request.departure_time,
                 start_snapped: [start_lon, start_lat],
                 end_snapped: [end_lon, end_lat],
             }))

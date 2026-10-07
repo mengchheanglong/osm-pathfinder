@@ -30,6 +30,28 @@ impl std::fmt::Display for Algorithm {
     }
 }
 
+/// Optimization criterion for pathfinding.
+#[derive(Debug, Clone, Copy, serde::Deserialize, Serialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum CostMetric {
+    /// Optimize for shortest physical distance (meters).
+    #[default]
+    Distance,
+    /// Optimize for fastest travel time (seconds, incorporating time-dependent traffic delays).
+    Time,
+}
+
+/// Optional configuration options for routing requests.
+#[derive(Debug, Clone, Default)]
+pub struct RoutingOptions {
+    /// Optimization criterion: Distance vs. Time.
+    pub metric: CostMetric,
+    /// Optional departure time in minutes from midnight (0..1439).
+    pub departure_minutes: Option<u32>,
+    /// Whether to collect explored node coordinates for wavefront visualization.
+    pub collect_explored: bool,
+}
+
 /// Result of a pathfinding query, including the path and benchmark metrics.
 #[derive(Debug, Serialize)]
 pub struct PathResult {
@@ -37,6 +59,9 @@ pub struct PathResult {
     pub path: Vec<u32>,
     /// Geographic coordinates along the path (for GeoJSON rendering).
     pub coordinates: Vec<Coordinate>,
+    /// Explored coordinates during search expansion (for wavefront visualization).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub explored_coordinates: Vec<Coordinate>,
     /// Total path distance in meters.
     pub distance_m: f64,
     /// Estimated travel duration in seconds.

@@ -19,7 +19,8 @@ use std::time::Instant;
 
 use crate::graph::RoadGraph;
 
-use super::types::{Algorithm, PathResult};
+use super::types::{Algorithm, CostMetric, PathResult, RoutingOptions};
+use crate::traffic;
 
 /// A node in the priority queue with its accumulated cost.
 ///
@@ -69,22 +70,38 @@ impl Ord for QueueEntry {
 ///
 /// `Some(PathResult)` containing the shortest path and metrics,
 /// or `None` if no path exists between the two nodes.
+
+/// Runs Dijkstra's algorithm on the road graph with default options.
 pub fn dijkstra_search(graph: &RoadGraph, start: u32, end: u32) -> Option<PathResult> {
+    dijkstra_search_with_options(graph, start, end, &RoutingOptions::default())
+}
+
+/// Runs Dijkstra's algorithm on the road graph with customizable routing options.
+pub fn dijkstra_search_with_options(
+    graph: &RoadGraph,
+    start: u32,
+    end: u32,
+    options: &RoutingOptions,
+) -> Option<PathResult> {
     let start_time = Instant::now();
     let num_nodes = graph.node_count();
 
-    // Distance to each node (infinity initially)
-    let mut dist: Vec<f64> = vec![f64::INFINITY; num_nodes];
-    // Duration to each node
-    let mut dur: Vec<f64> = vec![f64::INFINITY; num_nodes];
-    // Parent pointer for path reconstruction
+    if start as usize >= num_nodes || end as usize >= num_nodes {
+        return None;
+    }
+
+    // Accumulated routing cost (distance in meters or travel time in seconds)
+    let mut cost_arr: Vec<f64> = vec![f64::INFINITY; num_nodes];
+    let mut dist_arr: Vec<f64> = vec![f64::INFINITY; num_nodes];
+    let mut dur_arr: Vec<f64> = vec![f64::INFINITY; num_nodes];
     let mut parent: Vec<Option<u32>> = vec![None; num_nodes];
-    // Track visited nodes
     let mut visited: Vec<bool> = vec![false; num_nodes];
     let mut nodes_visited: usize = 0;
+    let mut explored_coordinates = Vec::new();
 
-    dist[start as usize] = 0.0;
-    dur[start as usize] = 0.0;
+    cost_arr[start as usize] = 0.0;
+    dist_arr[start as usize] = 0.0;
+    dur_arr[start as usize] = 0.0;
 
     let mut heap = BinaryHeap::new();
     heap.push(QueueEntry {
@@ -93,35 +110,52 @@ pub fn dijkstra_search(graph: &RoadGraph, start: u32, end: u32) -> Option<PathRe
     });
 
     while let Some(QueueEntry { node, cost }) = heap.pop() {
-        // Skip if already visited
         if visited[node as usize] {
             continue;
         }
         visited[node as usize] = true;
         nodes_visited += 1;
 
-        // Early termination: found the destination
+        if options.collect_explored && explored_coordinates.len() < 1200 {
+            if let Some(c) = graph.get_coord(node) {
+                explored_coordinates.push(*c);
+            }
+        }
+
         if node == end {
             break;
         }
 
-        // Skip stale entries
-        if cost > dist[node as usize] {
+        if cost > cost_arr[node as usize] {
             continue;
         }
 
-        // Explore neighbors
         for edge in graph.neighbors(node) {
-            let new_dist = dist[node as usize] + edge.distance_m;
+            let target_coord = graph.get_coord(edge.target);
+            let edge_duration = match target_coord {
+                Some(coord) => {
+                    let multiplier = traffic::congestion_multiplier(coord, options.departure_minutes);
+                    edge.duration_s * multiplier
+                }
+                None => edge.duration_s,
+            };
 
-            if new_dist < dist[edge.target as usize] {
-                dist[edge.target as usize] = new_dist;
-                dur[edge.target as usize] = dur[node as usize] + edge.duration_s;
+            let edge_cost = match options.metric {
+                CostMetric::Distance => edge.distance_m,
+                CostMetric::Time => edge_duration,
+            };
+
+            let new_cost = cost_arr[node as usize] + edge_cost;
+
+            if new_cost < cost_arr[edge.target as usize] {
+                cost_arr[edge.target as usize] = new_cost;
+                dist_arr[edge.target as usize] = dist_arr[node as usize] + edge.distance_m;
+                dur_arr[edge.target as usize] = dur_arr[node as usize] + edge_duration;
                 parent[edge.target as usize] = Some(node);
 
                 heap.push(QueueEntry {
                     node: edge.target,
-                    cost: new_dist,
+                    cost: new_cost,
                 });
             }
         }
@@ -129,19 +163,18 @@ pub fn dijkstra_search(graph: &RoadGraph, start: u32, end: u32) -> Option<PathRe
 
     let query_time = start_time.elapsed();
 
-    // Check if destination was reached
-    if dist[end as usize].is_infinite() {
+    if dist_arr[end as usize].is_infinite() {
         return None;
     }
 
-    // Reconstruct the path
     let (path, coordinates) = reconstruct_path(graph, &parent, start, end);
 
     Some(PathResult {
         path,
         coordinates,
-        distance_m: dist[end as usize],
-        duration_s: dur[end as usize],
+        explored_coordinates,
+        distance_m: dist_arr[end as usize],
+        duration_s: dur_arr[end as usize],
         nodes_visited,
         query_time,
         algorithm: Algorithm::Dijkstra,

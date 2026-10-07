@@ -17,7 +17,9 @@ use std::time::Instant;
 use crate::geo::haversine;
 use crate::graph::RoadGraph;
 
-use super::types::{Algorithm, PathResult};
+use super::types::{Algorithm, CostMetric, PathResult, RoutingOptions};
+use crate::graph::Coordinate;
+use crate::traffic;
 
 #[derive(Debug, Clone, Copy)]
 struct BiQueueEntry {
@@ -50,22 +52,55 @@ impl Ord for BiQueueEntry {
     }
 }
 
-/// Runs Bidirectional Dijkstra search.
+/// Runs Bidirectional Dijkstra search with default options.
 pub fn bidirectional_dijkstra_search(
     graph: &RoadGraph,
     start: u32,
     end: u32,
 ) -> Option<PathResult> {
-    run_bidirectional(graph, start, end, false)
+    bidirectional_dijkstra_search_with_options(graph, start, end, &RoutingOptions::default())
 }
 
-/// Runs Bidirectional A* search with balanced Haversine heuristic.
+/// Runs Bidirectional Dijkstra search with customizable options.
+pub fn bidirectional_dijkstra_search_with_options(
+    graph: &RoadGraph,
+    start: u32,
+    end: u32,
+    options: &RoutingOptions,
+) -> Option<PathResult> {
+    run_bidirectional(graph, start, end, false, options)
+}
+
+/// Runs Bidirectional A* search with default options.
 pub fn bidirectional_astar_search(
     graph: &RoadGraph,
     start: u32,
     end: u32,
 ) -> Option<PathResult> {
-    run_bidirectional(graph, start, end, true)
+    bidirectional_astar_search_with_options(graph, start, end, &RoutingOptions::default())
+}
+
+/// Runs Bidirectional A* search with customizable options.
+pub fn bidirectional_astar_search_with_options(
+    graph: &RoadGraph,
+    start: u32,
+    end: u32,
+    options: &RoutingOptions,
+) -> Option<PathResult> {
+    run_bidirectional(graph, start, end, true, options)
+}
+
+fn compute_bi_heuristic(
+    coord: &Coordinate,
+    target_lat: f64,
+    target_lon: f64,
+    metric: CostMetric,
+) -> f64 {
+    let dist_m = haversine::distance(coord.lat, coord.lon, target_lat, target_lon);
+    match metric {
+        CostMetric::Distance => dist_m,
+        CostMetric::Time => dist_m / traffic::MAX_NETWORK_SPEED_MS,
+    }
 }
 
 fn run_bidirectional(
@@ -73,6 +108,7 @@ fn run_bidirectional(
     start: u32,
     end: u32,
     use_heuristic: bool,
+    options: &RoutingOptions,
 ) -> Option<PathResult> {
     let start_time = Instant::now();
     let n = graph.node_count();
@@ -86,6 +122,7 @@ fn run_bidirectional(
         return Some(PathResult {
             path: vec![start],
             coordinates: vec![coord],
+            explored_coordinates: Vec::new(),
             distance_m: 0.0,
             duration_s: 0.0,
             nodes_visited: 1,
@@ -114,6 +151,7 @@ fn run_bidirectional(
 
     let mut heap_f = BinaryHeap::new();
     let mut heap_b = BinaryHeap::new();
+    let mut explored_coordinates = Vec::new();
 
     dist_f[start as usize] = 0.0;
     dur_f[start as usize] = 0.0;
@@ -121,11 +159,15 @@ fn run_bidirectional(
     dur_b[end as usize] = 0.0;
 
     let h_f_init = if use_heuristic {
-        haversine::distance(start_coord.lat, start_coord.lon, end_coord.lat, end_coord.lon)
+        compute_bi_heuristic(start_coord, end_coord.lat, end_coord.lon, options.metric)
     } else {
         0.0
     };
-    let h_b_init = h_f_init;
+    let h_b_init = if use_heuristic {
+        compute_bi_heuristic(end_coord, start_coord.lat, start_coord.lon, options.metric)
+    } else {
+        0.0
+    };
 
     heap_f.push(BiQueueEntry {
         node: start,
@@ -150,7 +192,12 @@ fn run_bidirectional(
                 visited_f[u as usize] = true;
                 nodes_visited += 1;
 
-                // Check meeting condition
+                if options.collect_explored && explored_coordinates.len() < 1200 {
+                    if let Some(c) = graph.get_coord(u) {
+                        explored_coordinates.push(*c);
+                    }
+                }
+
                 if visited_b[u as usize] {
                     let total = dist_f[u as usize] + dist_b[u as usize];
                     if total < best_cost {
@@ -159,18 +206,32 @@ fn run_bidirectional(
                     }
                 }
 
-                // If best cost is established and top keys exceed it, can terminate
                 if entry_f.cost >= best_cost {
                     break;
                 }
 
                 for edge in graph.neighbors(u) {
                     let v = edge.target;
-                    let new_dist = dist_f[u as usize] + edge.distance_m;
+                    let target_coord = match graph.get_coord(v) {
+                        Some(c) => c,
+                        None => continue,
+                    };
+
+                    let edge_duration = {
+                        let multiplier = traffic::congestion_multiplier(target_coord, options.departure_minutes);
+                        edge.duration_s * multiplier
+                    };
+
+                    let edge_cost = match options.metric {
+                        CostMetric::Distance => edge.distance_m,
+                        CostMetric::Time => edge_duration,
+                    };
+
+                    let new_dist = dist_f[u as usize] + edge_cost;
 
                     if new_dist < dist_f[v as usize] {
                         dist_f[v as usize] = new_dist;
-                        dur_f[v as usize] = dur_f[u as usize] + edge.duration_s;
+                        dur_f[v as usize] = dur_f[u as usize] + edge_duration;
                         parent_f[v as usize] = Some(u);
 
                         if visited_b[v as usize] {
@@ -182,11 +243,7 @@ fn run_bidirectional(
                         }
 
                         let h = if use_heuristic {
-                            if let Some(c) = graph.get_coord(v) {
-                                haversine::distance(c.lat, c.lon, end_coord.lat, end_coord.lon)
-                            } else {
-                                0.0
-                            }
+                            compute_bi_heuristic(target_coord, end_coord.lat, end_coord.lon, options.metric)
                         } else {
                             0.0
                         };
@@ -208,6 +265,12 @@ fn run_bidirectional(
                 visited_b[u as usize] = true;
                 nodes_visited += 1;
 
+                if options.collect_explored && explored_coordinates.len() < 1200 {
+                    if let Some(c) = graph.get_coord(u) {
+                        explored_coordinates.push(*c);
+                    }
+                }
+
                 if visited_f[u as usize] {
                     let total = dist_f[u as usize] + dist_b[u as usize];
                     if total < best_cost {
@@ -220,14 +283,28 @@ fn run_bidirectional(
                     break;
                 }
 
-                // Reverse neighbors: incoming edges towards u (from w to u)
                 for edge in graph.reverse_neighbors(u) {
                     let w = edge.target;
-                    let new_dist = dist_b[u as usize] + edge.distance_m;
+                    let source_coord = match graph.get_coord(w) {
+                        Some(c) => c,
+                        None => continue,
+                    };
+
+                    let edge_duration = {
+                        let multiplier = traffic::congestion_multiplier(source_coord, options.departure_minutes);
+                        edge.duration_s * multiplier
+                    };
+
+                    let edge_cost = match options.metric {
+                        CostMetric::Distance => edge.distance_m,
+                        CostMetric::Time => edge_duration,
+                    };
+
+                    let new_dist = dist_b[u as usize] + edge_cost;
 
                     if new_dist < dist_b[w as usize] {
                         dist_b[w as usize] = new_dist;
-                        dur_b[w as usize] = dur_b[u as usize] + edge.duration_s;
+                        dur_b[w as usize] = dur_b[u as usize] + edge_duration;
                         parent_b[w as usize] = Some(u);
 
                         if visited_f[w as usize] {
@@ -239,11 +316,7 @@ fn run_bidirectional(
                         }
 
                         let h = if use_heuristic {
-                            if let Some(c) = graph.get_coord(w) {
-                                haversine::distance(c.lat, c.lon, start_coord.lat, start_coord.lon)
-                            } else {
-                                0.0
-                            }
+                            compute_bi_heuristic(source_coord, start_coord.lat, start_coord.lon, options.metric)
                         } else {
                             0.0
                         };
@@ -258,7 +331,7 @@ fn run_bidirectional(
             }
         }
 
-        // Termination check: if both forward and backward queues top costs exceed best_cost
+        // Termination check: if both queues top costs exceed best_cost
         let top_f = heap_f.peek().map(|e| e.cost).unwrap_or(f64::INFINITY);
         let top_b = heap_b.peek().map(|e| e.cost).unwrap_or(f64::INFINITY);
         if top_f + top_b >= best_cost && best_meeting_node.is_some() {
@@ -272,7 +345,6 @@ fn run_bidirectional(
     }
 
     // Reconstruct path:
-    // 1. Forward half: trace parent_f from meeting_node back to start
     let mut forward_path = Vec::new();
     let mut curr = meeting_node;
     while curr != start {
@@ -282,7 +354,6 @@ fn run_bidirectional(
     forward_path.push(start);
     forward_path.reverse();
 
-    // 2. Backward half: trace parent_b from meeting_node to end
     let mut backward_path = Vec::new();
     let mut curr_b = meeting_node;
     while curr_b != end {
@@ -290,7 +361,6 @@ fn run_bidirectional(
         backward_path.push(curr_b);
     }
 
-    // Combine path
     let mut full_path = forward_path;
     full_path.extend(backward_path);
 
@@ -299,12 +369,23 @@ fn run_bidirectional(
         .filter_map(|&id| graph.get_coord(id).copied())
         .collect();
 
+    // Compute actual distance in meters along reconstructed path
+    let mut actual_distance_m = 0.0;
+    for window in full_path.windows(2) {
+        let u = window[0];
+        let v = window[1];
+        if let Some(edge) = graph.neighbors(u).iter().find(|e| e.target == v) {
+            actual_distance_m += edge.distance_m;
+        }
+    }
+
     let total_duration = dur_f[meeting_node as usize] + dur_b[meeting_node as usize];
 
     Some(PathResult {
         path: full_path,
         coordinates,
-        distance_m: best_cost,
+        explored_coordinates,
+        distance_m: actual_distance_m,
         duration_s: total_duration,
         nodes_visited,
         query_time: start_time.elapsed(),
