@@ -46,6 +46,47 @@ Measured on the Cambodia road network (Phnom Penh to Siem Reap, 264.4 km):
 
 ---
 
+## Mathematical Foundations
+
+### 1. Admissible Heuristic Proof for Dynamic Travel Time
+In distance-based routing, the straight-line Haversine formula $d_{\text{geo}}(u, t)$ is admissible because spherical distance never exceeds actual road distance: $h_{\text{dist}}(u) = d_{\text{geo}}(u, t) \le d^{\ast}_{\text{dist}}(u, t)$.
+
+Under **Time-Dependent Shortest Path (TDSP)** routing where edge speeds fluctuate with congestion, admissibility is preserved by bounding the network with the theoretical maximum speed limit $v_{\max} = 120\text{ km/h} \approx 33.33\text{ m/s}$:
+
+$$h_{\text{time}}(u) = \frac{d_{\text{geo}}(u, t)}{v_{\max}}$$
+
+Since actual traversal speed on any road segment $e \in E$ satisfies $v(e, \tau) \le v_{\max}$, the time required to traverse the true shortest road path $P^{\ast}$ satisfies:
+
+$$d^{\ast}_{\text{time}}(u, t) = \sum_{e \in P^{\ast}} \frac{\text{len}(e)}{v(e, \tau_e)} \ge \sum_{e \in P^{\ast}} \frac{\text{len}(e)}{v_{\max}} = \frac{d^{\ast}_{\text{dist}}(u, t)}{v_{\max}} \ge \frac{d_{\text{geo}}(u, t)}{v_{\max}} = h_{\text{time}}(u)$$
+
+Because $h_{\text{time}}(u) \le d^{\ast}_{\text{time}}(u, t)$ strictly holds for all $u \in V$, the heuristic is admissible and monotonic, guaranteeing mathematical optimality for $A^*$ and Bidirectional $A^*$.
+
+### 2. Contraction Hierarchies (CH) Upward Search Invariant
+Vertices $v \in V$ are totally ordered by contraction rank $\pi(v) \in \{0, \dots, |V|-1\}$. When contracting node $v$, shortcut edges $(u, w)$ with weight $c(u, v) + c(v, w)$ are inserted if and only if path $\langle u, v, w \rangle$ is the unique shortest path among remaining uncontracted nodes.
+
+During query evaluation:
+- **Forward upward search** from origin $s$ explores only edges $(u \to v)$ where $\pi(u) < \pi(v)$.
+- **Backward upward search** from destination $t$ explores only edges $(w \to v)$ where $\pi(w) < \pi(v)$.
+
+**Peak Invariant**: On the shortest path $P = \langle s = x_0, x_1, \dots, x_k = t \rangle$, let $x_{\text{top}} = \arg\max_{x \in P} \pi(x)$ be the maximum-rank vertex. The subpath from $s$ to $x_{\text{top}}$ consists exclusively of upward edges in the forward graph, and the subpath from $t$ to $x_{\text{top}}$ consists exclusively of upward edges in the backward graph. Thus, both search frontiers meet at $x_{\text{top}}$, evaluating $\min_{u} (\text{dist}_f[u] + \text{dist}_b[u])$ with $O(\text{polylog } |V|)$ vertex visits without exploring downward edges.
+
+### 3. Geographic Bearing & Turn Penalties
+Forward compass azimuth $\theta \in [0^{\circ}, 360^{\circ})$ from $(\phi_1, \lambda_1)$ to $(\phi_2, \lambda_2)$:
+
+$$\theta = \text{atan2}\left(\sin \Delta\lambda \cos \phi_2, \; \cos \phi_1 \sin \phi_2 - \sin \phi_1 \cos \phi_2 \cos \Delta\lambda\right)$$
+
+The signed deflection angle $\Delta\theta \in [-180^{\circ}, 180^{\circ}]$ between incoming road segment $\theta_1$ and outgoing segment $\theta_2$:
+
+$$\Delta\theta = (\theta_2 - \theta_1 + 540^{\circ}) \bmod 360^{\circ} - 180^{\circ}$$
+
+Junction delay $\text{cost}_{\text{turn}}(\Delta\theta)$ models deceleration and oncoming traffic yield penalties:
+- Straight corridor ($|\Delta\theta| \le 30^{\circ}$): $0\text{ s}$
+- Right turn ($30^{\circ} < \Delta\theta \le 120^{\circ}$): $4\text{ s}$
+- Left turn crossing traffic ($-120^{\circ} \le \Delta\theta < -30^{\circ}$): $8\text{ s}$
+- U-turn ($|\Delta\theta| > 120^{\circ}$): $15\text{ s}$
+
+---
+
 ## Quick Start
 
 ### Prerequisites
