@@ -13,19 +13,21 @@ osm-pathfinder is a highly optimized routing engine that parses OpenStreetMap (O
 
 ## Features
 
-- [x] Dijkstra's shortest path algorithm
+- [x] Dijkstra's shortest path algorithm (uniform-cost baseline)
 - [x] A* with Haversine great-circle heuristic
-- [x] OpenStreetMap PBF file parsing
-- [x] In-memory compressed graph representation
-- [x] Spatial indexing (R-Tree) for coordinate snapping
-- [x] RESTful API via Axum
-- [x] Algorithm benchmark comparison (nodes visited, query time)
+- [x] Bidirectional A* search (dual meeting wavefronts)
+- [x] Bidirectional Dijkstra search
+- [x] OpenStreetMap PBF file parsing (streaming two-pass)
+- [x] Built-in demo road network (runs out-of-the-box without large downloads)
+- [x] In-memory compressed graph representation (`Vec<Vec<Edge>>`)
+- [x] Spatial indexing (R-Tree via `rstar`) for coordinate snapping
+- [x] RESTful API via Axum with static file serving
+- [x] Algorithm benchmark comparison (nodes visited, query time, % search reduction)
 - [x] GeoJSON response format
-- [ ] Bidirectional A* search
+- [x] Interactive frontend map visualization (Leaflet.js)
 - [ ] Contraction Hierarchies preprocessing
-- [ ] Turn restrictions and one-way streets
+- [ ] Turn restrictions and one-way penalty weights
 - [ ] Live traffic simulation
-- [ ] Frontend map visualization (Leaflet.js)
 
 ## Quick Start
 
@@ -54,13 +56,17 @@ osm-pathfinder is a highly optimized routing engine that parses OpenStreetMap (O
    cargo run --release
    ```
 
-4. **Test the API:**
+4. **Test the API or open the Web UI:**
+   - Open your browser to `http://localhost:3000` to interact with the Leaflet map.
+   - Or test via curl:
    ```bash
    curl -X POST http://localhost:3000/api/route \
      -H "Content-Type: application/json" \
      -d '{
-       "start": {"lat": 11.5564, "lon": 104.9282},
-       "end": {"lat": 13.3633, "lon": 103.8564},
+       "start_lat": 11.5564,
+       "start_lon": 104.9282,
+       "end_lat": 13.3671,
+       "end_lon": 103.8448,
        "algorithm": "astar"
      }'
    ```
@@ -75,32 +81,33 @@ Checks if the routing engine and API are operational.
 ### Calculate Route
 **Endpoint:** `POST /api/route`
 
-Calculates the shortest path between two coordinates.
+Calculates the shortest path between two coordinates. Supported algorithms: `astar`, `bidirectional_astar`, `dijkstra`, `bidirectional_dijkstra`.
 
 **Request Body:**
 ```json
 {
-  "start": { "lat": 11.5564, "lon": 104.9282 },
-  "end": { "lat": 13.3633, "lon": 103.8564 },
-  "algorithm": "astar" // "astar" or "dijkstra"
+  "start_lat": 11.5564,
+  "start_lon": 104.9282,
+  "end_lat": 13.3671,
+  "end_lon": 103.8448,
+  "algorithm": "astar"
 }
 ```
 
 **Response:**
 ```json
 {
-  "path_coordinates": [
+  "path": [
     [104.9282, 11.5564],
     [104.9285, 11.5568]
   ],
-  "distance_meters": 314500.5,
-  "duration_seconds": 18500.2,
-  "nodes_visited": 14532,
-  "query_time_ms": 2.4,
-  "geojson": {
-    "type": "FeatureCollection",
-    "features": [ ]
-  }
+  "distance_m": 314500.5,
+  "duration_s": 14200.2,
+  "nodes_visited": 1284,
+  "query_time_ms": 1.25,
+  "algorithm": "astar",
+  "start_snapped": [104.9282, 11.5564],
+  "end_snapped": [103.8448, 13.3671]
 }
 ```
 

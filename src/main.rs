@@ -9,9 +9,9 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tracing::info;
+use tracing::{info, warn};
 
-use osm_pathfinder::{api, osm, spatial, AppState};
+use osm_pathfinder::{api, graph, osm, spatial, AppState};
 
 /// Command-line arguments for osm-pathfinder.
 #[derive(Parser, Debug)]
@@ -21,9 +21,13 @@ use osm_pathfinder::{api, osm, spatial, AppState};
     version
 )]
 struct Args {
-    /// Path to the OSM PBF data file.
+    /// Path to the OSM PBF data file (e.g. data/cambodia-latest.osm.pbf).
     #[arg(short, long, env = "OSM_DATA_PATH")]
-    data: PathBuf,
+    data: Option<PathBuf>,
+
+    /// Run with built-in Cambodia road network.
+    #[arg(long, default_value_t = false)]
+    demo: bool,
 
     /// Host address to bind the server to.
     #[arg(long, default_value = "127.0.0.1", env = "SERVER_HOST")]
@@ -47,11 +51,27 @@ async fn main() -> Result<()> {
     let args = Args::parse();
 
     info!("osm-pathfinder v{}", env!("CARGO_PKG_VERSION"));
-    info!(path = %args.data.display(), "Loading OSM data");
 
-    // Parse OSM PBF file and build the road graph
-    let road_graph = osm::parse_pbf(&args.data)
-        .with_context(|| format!("Failed to parse OSM file: {}", args.data.display()))?;
+    let use_demo = args.demo || args.data.as_ref().map(|p| !p.exists()).unwrap_or(true);
+
+    let road_graph = if use_demo {
+        if let Some(ref path) = args.data {
+            if !path.exists() {
+                warn!(
+                    path = %path.display(),
+                    "OSM file not found. Falling back to built-in Cambodia road network"
+                );
+            }
+        } else {
+            info!("No OSM file specified (--data). Loading built-in Cambodia highway network");
+        }
+        graph::create_demo_graph()
+    } else {
+        let path = args.data.as_ref().unwrap();
+        info!(path = %path.display(), "Loading OSM PBF data");
+        osm::parse_pbf(path)
+            .with_context(|| format!("Failed to parse OSM file: {}", path.display()))?
+    };
 
     info!(
         nodes = road_graph.node_count(),

@@ -16,6 +16,8 @@ pub struct GraphBuilder {
     coords: Vec<Coordinate>,
     /// Adjacency list being constructed.
     adjacency: Vec<Vec<Edge>>,
+    /// Reverse adjacency list being constructed.
+    reverse_adjacency: Vec<Vec<Edge>>,
     /// Counter for generating internal node IDs.
     next_id: u32,
 }
@@ -27,6 +29,7 @@ impl GraphBuilder {
             osm_id_map: HashMap::new(),
             coords: Vec::new(),
             adjacency: Vec::new(),
+            reverse_adjacency: Vec::new(),
             next_id: 0,
         }
     }
@@ -37,6 +40,7 @@ impl GraphBuilder {
             osm_id_map: HashMap::with_capacity(estimated_nodes),
             coords: Vec::with_capacity(estimated_nodes),
             adjacency: Vec::with_capacity(estimated_nodes),
+            reverse_adjacency: Vec::with_capacity(estimated_nodes),
             next_id: 0,
         }
     }
@@ -57,6 +61,7 @@ impl GraphBuilder {
         self.osm_id_map.insert(osm_id, id);
         self.coords.push(Coordinate::new(lat, lon));
         self.adjacency.push(Vec::new());
+        self.reverse_adjacency.push(Vec::new());
 
         id
     }
@@ -113,17 +118,28 @@ impl GraphBuilder {
                 distance_m / (50.0 / 3.6) // fallback: 50 km/h
             };
 
-            // Forward edge
+            // Forward edge (from -> to)
             self.adjacency[from_id as usize].push(Edge {
                 target: to_id,
                 distance_m,
                 duration_s,
             });
+            // Reverse adjacency stores incoming edge for backward search
+            self.reverse_adjacency[to_id as usize].push(Edge {
+                target: from_id,
+                distance_m,
+                duration_s,
+            });
 
-            // Reverse edge (if not one-way)
+            // Reverse edge (if not one-way, to -> from is also a valid traversal)
             if !is_oneway {
                 self.adjacency[to_id as usize].push(Edge {
                     target: from_id,
+                    distance_m,
+                    duration_s,
+                });
+                self.reverse_adjacency[from_id as usize].push(Edge {
+                    target: to_id,
                     distance_m,
                     duration_s,
                 });
@@ -133,7 +149,7 @@ impl GraphBuilder {
 
     /// Consumes the builder and produces the final [`RoadGraph`].
     pub fn build(self) -> RoadGraph {
-        RoadGraph::new(self.adjacency, self.coords, self.osm_id_map)
+        RoadGraph::new(self.adjacency, self.reverse_adjacency, self.coords, self.osm_id_map)
     }
 }
 

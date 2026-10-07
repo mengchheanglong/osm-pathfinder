@@ -4,7 +4,9 @@
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use osm_pathfinder::graph::{GraphBuilder, RoadGraph};
-use osm_pathfinder::pathfinding::{astar_search, dijkstra_search};
+use osm_pathfinder::pathfinding::{
+    astar_search, bidirectional_astar_search, bidirectional_dijkstra_search, dijkstra_search,
+};
 
 /// Generates a synthetic NxN grid graph for benchmarking.
 fn create_grid_graph(size: usize) -> RoadGraph {
@@ -51,6 +53,18 @@ fn bench_pathfinding(c: &mut Criterion) {
     group.bench_function("astar", |b| {
         b.iter(|| {
             astar_search(black_box(&graph), black_box(start_node), black_box(end_node))
+        });
+    });
+
+    group.bench_function("bidirectional_dijkstra", |b| {
+        b.iter(|| {
+            bidirectional_dijkstra_search(black_box(&graph), black_box(start_node), black_box(end_node))
+        });
+    });
+
+    group.bench_function("bidirectional_astar", |b| {
+        b.iter(|| {
+            bidirectional_astar_search(black_box(&graph), black_box(start_node), black_box(end_node))
         });
     });
 

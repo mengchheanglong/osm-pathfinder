@@ -67,7 +67,26 @@ fn test_end_to_end_routing_pipeline() {
         "Dijkstra and A* distances must match"
     );
 
-    // 5. Verify coordinates in path
+    // 5. Pathfinding with Bidirectional A* & Bidirectional Dijkstra
+    let bi_astar_res = osm_pathfinder::pathfinding::bidirectional_astar_search(&graph, start_node, end_node)
+        .expect("Bidirectional A* should find path");
+    assert_eq!(bi_astar_res.algorithm, Algorithm::BidirectionalAstar);
+    assert_eq!(bi_astar_res.path.first(), Some(&start_node));
+    assert_eq!(bi_astar_res.path.last(), Some(&end_node));
+    assert!(
+        (dijkstra_res.distance_m - bi_astar_res.distance_m).abs() < 1e-4,
+        "Bidirectional A* distance must match Dijkstra"
+    );
+
+    let bi_dijkstra_res = osm_pathfinder::pathfinding::bidirectional_dijkstra_search(&graph, start_node, end_node)
+        .expect("Bidirectional Dijkstra should find path");
+    assert_eq!(bi_dijkstra_res.algorithm, Algorithm::BidirectionalDijkstra);
+    assert!(
+        (dijkstra_res.distance_m - bi_dijkstra_res.distance_m).abs() < 1e-4,
+        "Bidirectional Dijkstra distance must match"
+    );
+
+    // 6. Verify coordinates in path
     assert_eq!(astar_res.coordinates.len(), astar_res.path.len());
     let direct_dist = haversine::distance(
         graph.get_coord(start_node).unwrap().lat,

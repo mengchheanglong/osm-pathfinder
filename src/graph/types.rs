@@ -35,6 +35,8 @@ pub struct Edge {
 pub struct RoadGraph {
     /// Adjacency list: `adjacency[node_id]` contains all outgoing edges.
     pub adjacency: Vec<Vec<Edge>>,
+    /// Reverse adjacency list: `reverse_adjacency[node_id]` contains all incoming edges.
+    pub reverse_adjacency: Vec<Vec<Edge>>,
     /// Coordinates for each node, indexed by internal node ID.
     pub coords: Vec<Coordinate>,
     /// Mapping from OSM node IDs (i64) to internal compact IDs (u32).
@@ -45,11 +47,13 @@ impl RoadGraph {
     /// Creates a new road graph with pre-allocated capacity.
     pub fn new(
         adjacency: Vec<Vec<Edge>>,
+        reverse_adjacency: Vec<Vec<Edge>>,
         coords: Vec<Coordinate>,
         osm_id_map: std::collections::HashMap<i64, u32>,
     ) -> Self {
         Self {
             adjacency,
+            reverse_adjacency,
             coords,
             osm_id_map,
         }
@@ -73,6 +77,14 @@ impl RoadGraph {
     /// Returns the outgoing edges of a node by its internal ID.
     pub fn neighbors(&self, node_id: u32) -> &[Edge] {
         self.adjacency
+            .get(node_id as usize)
+            .map(|v| v.as_slice())
+            .unwrap_or(&[])
+    }
+
+    /// Returns the incoming edges of a node by its internal ID (for backward search).
+    pub fn reverse_neighbors(&self, node_id: u32) -> &[Edge] {
+        self.reverse_adjacency
             .get(node_id as usize)
             .map(|v| v.as_slice())
             .unwrap_or(&[])

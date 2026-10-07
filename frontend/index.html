@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>osm-pathfinder — Real-time OpenStreetMap Routing Engine</title>
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Fullscreen Map Container -->
+  <div id="map"></div>
+
+  <!-- Sidebar Overlay / Floating Controller -->
+  <aside class="control-panel">
+    <header class="panel-header">
+      <div class="brand">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+          </svg>
+        </div>
+        <div>
+          <h1>osm-pathfinder</h1>
+          <p class="subtitle">High-performance Rust Routing Engine</p>
+        </div>
+      </div>
+      <div id="graph-badge" class="badge">Loading graph...</div>
+    </header>
+
+    <!-- Route Preset Selection -->
+    <div class="panel-section">
+      <label for="preset-select" class="field-label">
+        <span>Presets</span>
+        <span class="hint">Quick-jump Cambodia corridors</span>
+      </label>
+      <select id="preset-select" class="select-input">
+        <option value="">— Select a route preset —</option>
+        <option value="pp-siemreap">Phnom Penh → Siem Reap (NR6)</option>
+        <option value="pp-sihanoukville">Phnom Penh → Sihanoukville (Expressway)</option>
+        <option value="pp-battambang">Phnom Penh → Battambang (NR5)</option>
+        <option value="siemreap-battambang">Siem Reap → Battambang (NR6/NR5)</option>
+        <option value="pp-kampot">Phnom Penh → Kampot (NR3)</option>
+        <option value="sr-angkor">Siem Reap Central → Angkor Wat</option>
+      </select>
+    </div>
+
+    <!-- Coordinate Inputs -->
+    <div class="panel-section">
+      <div class="point-inputs">
+        <div class="point-row">
+          <span class="point-marker start-dot"></span>
+          <div class="point-details">
+            <span class="point-label">Start Point</span>
+            <span id="start-coords-display" class="coords-text">Click map or pick preset</span>
+          </div>
+        </div>
+        <div class="point-row">
+          <span class="point-marker end-dot"></span>
+          <div class="point-details">
+            <span class="point-label">Destination</span>
+            <span id="end-coords-display" class="coords-text">Click map or pick preset</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Algorithm Selection -->
+    <div class="panel-section">
+      <label class="field-label">Algorithm</label>
+      <div class="algorithm-grid">
+        <label class="algo-card active" data-algo="astar">
+          <input type="radio" name="algorithm" value="astar" checked>
+          <div class="algo-title">A* Search</div>
+          <div class="algo-desc">Haversine heuristic</div>
+        </label>
+        <label class="algo-card" data-algo="bidirectional_astar">
+          <input type="radio" name="algorithm" value="bidirectional_astar">
+          <div class="algo-title">Bi-directional A*</div>
+          <div class="algo-desc">Meets in middle</div>
+        </label>
+        <label class="algo-card" data-algo="dijkstra">
+          <input type="radio" name="algorithm" value="dijkstra">
+          <div class="algo-title">Dijkstra</div>
+          <div class="algo-desc">Uniform cost</div>
+        </label>
+        <label class="algo-card" data-algo="bidirectional_dijkstra">
+          <input type="radio" name="algorithm" value="bidirectional_dijkstra">
+          <div class="algo-title">Bi-directional Dijkstra</div>
+          <div class="algo-desc">Dual wavefronts</div>
+        </label>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="panel-section button-group">
+      <button id="calc-route-btn" class="btn btn-primary" disabled>
+        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        Calculate Route
+      </button>
+      <button id="compare-btn" class="btn btn-secondary" disabled>
+        Compare All 4
+      </button>
+      <button id="clear-btn" class="btn btn-ghost" title="Clear path and pins">
+        Clear
+      </button>
+    </div>
+
+    <!-- Live Performance Metrics -->
+    <div id="metrics-card" class="panel-section metrics-card hidden">
+      <h3 class="metrics-heading">Query Results</h3>
+      <div class="metrics-grid">
+        <div class="metric-box">
+          <span class="metric-label">Distance</span>
+          <span id="metric-distance" class="metric-value">-</span>
+        </div>
+        <div class="metric-box">
+          <span class="metric-label">Travel Time</span>
+          <span id="metric-duration" class="metric-value">-</span>
+        </div>
+        <div class="metric-box">
+          <span class="metric-label">Nodes Visited</span>
+          <span id="metric-visited" class="metric-value highlight">-</span>
+        </div>
+        <div class="metric-box">
+          <span class="metric-label">Latency</span>
+          <span id="metric-latency" class="metric-value highlight">-</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Comparison Table (when Compare All is pressed) -->
+    <div id="compare-card" class="panel-section compare-card hidden">
+      <h3 class="metrics-heading">Side-by-Side Algorithm Benchmark</h3>
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>Algorithm</th>
+            <th>Nodes</th>
+            <th>Time</th>
+            <th>Distance</th>
+          </tr>
+        </thead>
+        <tbody id="compare-tbody">
+          <!-- Populated by JS -->
+        </tbody>
+      </table>
+      <div class="compare-insight" id="compare-insight"></div>
+    </div>
+
+    <footer class="panel-footer">
+      <span>Map data: OpenStreetMap contributors</span>
+      <span>Engine: Rust Axum</span>
+    </footer>
+  </aside>
+
+  <!-- Instructions Overlay banner -->
+  <div class="instruction-banner">
+    Click anywhere on the map to set <strong>Start</strong> (green) and <strong>Destination</strong> (red)
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="app.js"></script>
+</body>
+</html>

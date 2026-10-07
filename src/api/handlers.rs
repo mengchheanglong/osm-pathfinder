@@ -161,6 +161,12 @@ pub async fn calculate_route(
     let result: Option<PathResult> = match request.algorithm {
         Algorithm::Dijkstra => pathfinding::dijkstra_search(&state.road_graph, start_node, end_node),
         Algorithm::Astar => pathfinding::astar_search(&state.road_graph, start_node, end_node),
+        Algorithm::BidirectionalDijkstra => {
+            pathfinding::bidirectional_dijkstra_search(&state.road_graph, start_node, end_node)
+        }
+        Algorithm::BidirectionalAstar => {
+            pathfinding::bidirectional_astar_search(&state.road_graph, start_node, end_node)
+        }
     };
 
     match result {

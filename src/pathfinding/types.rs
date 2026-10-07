@@ -7,12 +7,16 @@ use crate::graph::Coordinate;
 
 /// Available pathfinding algorithms.
 #[derive(Debug, Clone, Copy, serde::Deserialize, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum Algorithm {
     /// Dijkstra's algorithm — uniform-cost search (baseline).
     Dijkstra,
     /// A* search with Haversine great-circle heuristic.
     Astar,
+    /// Bidirectional Dijkstra search.
+    BidirectionalDijkstra,
+    /// Bidirectional A* search with balanced heuristics.
+    BidirectionalAstar,
 }
 
 impl std::fmt::Display for Algorithm {
@@ -20,6 +24,8 @@ impl std::fmt::Display for Algorithm {
         match self {
             Algorithm::Dijkstra => write!(f, "dijkstra"),
             Algorithm::Astar => write!(f, "astar"),
+            Algorithm::BidirectionalDijkstra => write!(f, "bidirectional_dijkstra"),
+            Algorithm::BidirectionalAstar => write!(f, "bidirectional_astar"),
         }
     }
 }
