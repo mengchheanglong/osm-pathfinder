@@ -63,31 +63,80 @@
     <!-- Routing Mode Controls -->
     <div id="routing-panel">
       <!-- Route Preset Selection -->
-      <div class="panel-section">
-      <label for="preset-select" class="field-label">
-        <span>Presets</span>
-        <span class="hint">Phnom Penh delivery &amp; national corridors</span>
-      </label>
-      <select id="preset-select" class="select-input">
-        <option value="">— Select a route preset —</option>
-        <optgroup label="📍 Phnom Penh Urban Delivery">
-          <option value="pp-depot-a-to-st271">Central Market Depot A → St 271 (Meanchey)</option>
-          <option value="pp-depot-a-to-bkk1">Central Market Depot A → BKK1 (Pasteur)</option>
-          <option value="pp-depot-b-to-tuolkork">Russian Market Depot B → Tuol Kork (St 289)</option>
-          <option value="pp-hub-to-riverside">Central Hub (Bak Touk) → Riverside (Sisowath Quay)</option>
-          <option value="pp-depot-a-to-sensok">Central Market Depot A → Sen Sok (AEON 2)</option>
-          <option value="pp-depot-b-to-norodom">Russian Market Depot B → Independence Monument</option>
-        </optgroup>
-        <optgroup label="🛣️ National Corridors">
-          <option value="pp-siemreap">Phnom Penh → Siem Reap (NR6)</option>
-          <option value="pp-sihanoukville">Phnom Penh → Sihanoukville (Expressway)</option>
-          <option value="pp-battambang">Phnom Penh → Battambang (NR5)</option>
-          <option value="siemreap-battambang">Siem Reap → Battambang (NR6/NR5)</option>
-          <option value="pp-kampot">Phnom Penh → Kampot (NR3)</option>
-          <option value="sr-angkor">Siem Reap Central → Angkor Wat</option>
-        </optgroup>
-      </select>
-    </div>
+      <div class="panel-section preset-section">
+        <div class="preset-header-row">
+          <label class="field-label" id="preset-label">
+            <span>Route Presets</span>
+            <span class="hint">Urban delivery &amp; corridors</span>
+          </label>
+          <button type="button" id="preset-clear-btn" class="preset-reset-btn hidden" title="Clear preset selection">Clear</button>
+        </div>
+
+        <!-- Custom Preset Combobox -->
+        <div class="custom-preset-container" id="custom-preset-container">
+          <button type="button" class="preset-trigger-btn" id="preset-trigger" aria-haspopup="listbox" aria-expanded="false">
+            <span class="preset-trigger-left">
+              <span class="preset-trigger-icon" id="preset-trigger-icon">📍</span>
+              <span class="preset-trigger-label" id="preset-trigger-label">Select a route preset...</span>
+            </span>
+            <span class="preset-trigger-right">
+              <span class="preset-trigger-badge hidden" id="preset-trigger-badge">Urban</span>
+              <svg class="preset-chevron" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </span>
+          </button>
+
+          <!-- Hidden Native Select for complete backward compatibility -->
+          <select id="preset-select" class="preset-native-hidden" tabindex="-1" aria-hidden="true">
+            <option value="">— Select a route preset —</option>
+            <optgroup label="📍 Phnom Penh Urban Delivery">
+              <option value="pp-depot-a-to-st271">Central Market Depot A → St 271 (Meanchey)</option>
+              <option value="pp-depot-a-to-bkk1">Central Market Depot A → BKK1 (Pasteur)</option>
+              <option value="pp-depot-b-to-tuolkork">Russian Market Depot B → Tuol Kork (St 289)</option>
+              <option value="pp-hub-to-riverside">Central Hub (Bak Touk) → Riverside (Sisowath Quay)</option>
+              <option value="pp-depot-a-to-sensok">Central Market Depot A → Sen Sok (AEON 2)</option>
+              <option value="pp-depot-b-to-norodom">Russian Market Depot B → Independence Monument</option>
+            </optgroup>
+            <optgroup label="🛣️ National Corridors">
+              <option value="pp-siemreap">Phnom Penh → Siem Reap (NR6)</option>
+              <option value="pp-sihanoukville">Phnom Penh → Sihanoukville (Expressway)</option>
+              <option value="pp-battambang">Phnom Penh → Battambang (NR5)</option>
+              <option value="siemreap-battambang">Siem Reap → Battambang (NR6/NR5)</option>
+              <option value="pp-kampot">Phnom Penh → Kampot (NR3)</option>
+              <option value="sr-angkor">Siem Reap Central → Angkor Wat</option>
+            </optgroup>
+          </select>
+
+          <!-- Custom Popover Menu -->
+          <div class="preset-dropdown-menu hidden" id="preset-dropdown-menu" role="listbox">
+            <!-- Filter Tabs -->
+            <div class="preset-category-tabs">
+              <button type="button" class="preset-tab active" data-tab="all">All (12)</button>
+              <button type="button" class="preset-tab" data-tab="urban">📍 Phnom Penh (6)</button>
+              <button type="button" class="preset-tab" data-tab="highway">🛣️ Highways (6)</button>
+            </div>
+
+            <!-- Search Filter Bar -->
+            <div class="preset-search-box">
+              <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input type="text" id="preset-search-input" placeholder="Search routes (e.g. BKK1, Siem Reap)..." autocomplete="off" />
+              <button type="button" id="preset-search-clear" class="hidden">×</button>
+            </div>
+
+            <!-- Preset List Items -->
+            <div class="preset-list-viewport" id="preset-list-viewport">
+              <!-- Dynamically populated by JS from PRESETS data -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Jump Chips -->
+        <div class="quick-preset-chips">
+          <span class="quick-chips-label">Quick:</span>
+          <button type="button" class="quick-chip" data-preset="pp-depot-a-to-st271">Depot A → St 271</button>
+          <button type="button" class="quick-chip" data-preset="pp-depot-a-to-bkk1">Depot A → BKK1</button>
+          <button type="button" class="quick-chip" data-preset="pp-siemreap">PP → Siem Reap</button>
+        </div>
+      </div>
 
     <!-- Coordinate Inputs -->
     <div class="panel-section">

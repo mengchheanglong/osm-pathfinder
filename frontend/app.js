@@ -32,65 +32,101 @@ document.addEventListener('DOMContentLoaded', () => {
   const PRESETS = {
     // --- Phnom Penh Urban Delivery Corridors ---
     'pp-depot-a-to-st271': {
-      start: [11.5680, 104.9223], // Central Market Depot A
-      end: [11.5305, 104.9085],   // St 271 / Boeung Tumpun
-      name: 'PP: Central Market Depot A → St 271 (Meanchey)'
+      start: [11.5680, 104.9223],
+      end: [11.5305, 104.9085],
+      name: 'Central Market Depot A → St 271 (Meanchey)',
+      category: 'urban',
+      desc: 'Central Market to Boeung Tumpun • ~6.8 km',
+      tag: 'Depot A'
     },
     'pp-depot-a-to-bkk1': {
-      start: [11.5680, 104.9223], // Central Market Depot A
-      end: [11.5528, 104.9282],   // BKK1 / Pasteur (St 51)
-      name: 'PP: Central Market Depot A → BKK1 (Pasteur)'
+      start: [11.5680, 104.9223],
+      end: [11.5528, 104.9282],
+      name: 'Central Market Depot A → BKK1 (Pasteur)',
+      category: 'urban',
+      desc: 'Depot A to Pasteur (St 51) • ~2.1 km',
+      tag: 'Depot A'
     },
     'pp-depot-b-to-tuolkork': {
-      start: [11.5435, 104.9142], // Russian Market Depot B
-      end: [11.5732, 104.8984],   // Tuol Kork (St 289)
-      name: 'PP: Russian Market Depot B → Tuol Kork (St 289)'
+      start: [11.5435, 104.9142],
+      end: [11.5732, 104.8984],
+      name: 'Russian Market Depot B → Tuol Kork (St 289)',
+      category: 'urban',
+      desc: 'Toul Tompoung to TK Avenue (St 289) • ~5.2 km',
+      tag: 'Depot B'
     },
     'pp-hub-to-riverside': {
-      start: [11.5621, 104.9160], // Bak Touk E-Commerce Hub
-      end: [11.5695, 104.9312],   // Riverside / Sisowath Quay
-      name: 'PP: Central Hub → Riverside (Sisowath Quay)'
+      start: [11.5621, 104.9160],
+      end: [11.5695, 104.9312],
+      name: 'Central Hub (Bak Touk) → Riverside (Sisowath)',
+      category: 'urban',
+      desc: 'Olympic to Sisowath Quay waterfront • ~2.4 km',
+      tag: 'Central Hub'
     },
     'pp-depot-a-to-sensok': {
-      start: [11.5680, 104.9223], // Central Market Depot A
-      end: [11.5850, 104.8820],   // Sen Sok (AEON Mall 2)
-      name: 'PP: Central Market Depot A → Sen Sok (AEON 2)'
+      start: [11.5680, 104.9223],
+      end: [11.5850, 104.8820],
+      name: 'Central Market Depot A → Sen Sok (AEON 2)',
+      category: 'urban',
+      desc: 'Depot A to AEON Mall 2 via Russian Blvd • ~6.4 km',
+      tag: 'Depot A'
     },
     'pp-depot-b-to-norodom': {
-      start: [11.5435, 104.9142], // Russian Market Depot B
-      end: [11.5564, 104.9282],   // Independence Monument / Norodom
-      name: 'PP: Russian Market Depot B → Independence Monument'
+      start: [11.5435, 104.9142],
+      end: [11.5564, 104.9282],
+      name: 'Russian Market Depot B → Independence Monument',
+      category: 'urban',
+      desc: 'Toul Tompoung north to Norodom Blvd • ~2.3 km',
+      tag: 'Depot B'
     },
     // --- Cambodia Highway Corridors ---
     'pp-siemreap': {
-      start: [11.5564, 104.9282], // Phnom Penh Central
-      end: [13.3671, 103.8448],   // Siem Reap Central
-      name: 'Phnom Penh → Siem Reap (NR6)'
+      start: [11.5564, 104.9282],
+      end: [13.3671, 103.8448],
+      name: 'Phnom Penh → Siem Reap (NR6)',
+      category: 'highway',
+      desc: 'National Road 6 Corridor • ~265 km',
+      tag: 'NR6'
     },
     'pp-sihanoukville': {
-      start: [11.5564, 104.9282], // Phnom Penh Central
-      end: [10.6253, 103.5234],   // Sihanoukville
-      name: 'Phnom Penh → Sihanoukville (Expressway)'
+      start: [11.5564, 104.9282],
+      end: [10.6253, 103.5234],
+      name: 'Phnom Penh → Sihanoukville (Expressway)',
+      category: 'highway',
+      desc: 'Phnom Penh–Sihanoukville Expressway • ~190 km',
+      tag: 'Expressway'
     },
     'pp-battambang': {
-      start: [11.5564, 104.9282], // Phnom Penh Central
-      end: [13.0957, 103.2022],   // Battambang
-      name: 'Phnom Penh → Battambang (NR5)'
+      start: [11.5564, 104.9282],
+      end: [13.0957, 103.2022],
+      name: 'Phnom Penh → Battambang (NR5)',
+      category: 'highway',
+      desc: 'National Road 5 Northwest Corridor • ~290 km',
+      tag: 'NR5'
     },
     'siemreap-battambang': {
-      start: [13.3671, 103.8448], // Siem Reap Central
-      end: [13.0957, 103.2022],   // Battambang
-      name: 'Siem Reap → Battambang (NR6/NR5)'
+      start: [13.3671, 103.8448],
+      end: [13.0957, 103.2022],
+      name: 'Siem Reap → Battambang (NR6/NR5)',
+      category: 'highway',
+      desc: 'NR6 West via Kralanh to NR5 • ~165 km',
+      tag: 'NR6/NR5'
     },
     'pp-kampot': {
-      start: [11.5564, 104.9282], // Phnom Penh Central
-      end: [10.6104, 104.1815],   // Kampot
-      name: 'Phnom Penh → Kampot (NR3)'
+      start: [11.5564, 104.9282],
+      end: [10.6104, 104.1815],
+      name: 'Phnom Penh → Kampot (NR3)',
+      category: 'highway',
+      desc: 'National Road 3 Southern Corridor • ~148 km',
+      tag: 'NR3'
     },
     'sr-angkor': {
-      start: [13.3671, 103.8448], // Siem Reap Old Market
-      end: [13.4125, 103.8670],   // Angkor Wat
-      name: 'Siem Reap Central → Angkor Wat'
+      start: [13.3671, 103.8448],
+      end: [13.4125, 103.8670],
+      name: 'Siem Reap Central → Angkor Wat',
+      category: 'highway',
+      desc: 'Old Market to Angkor Wat temple • ~6.5 km',
+      tag: 'Angkor'
     }
   };
 
@@ -552,10 +588,261 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // -------------------------------------------------------------------------
-  // Preset Selection
+  // Custom Route Preset Combobox & Selection
   // -------------------------------------------------------------------------
+  const presetTrigger = document.getElementById('preset-trigger');
+  const presetTriggerLabel = document.getElementById('preset-trigger-label');
+  const presetTriggerBadge = document.getElementById('preset-trigger-badge');
+  const presetTriggerIcon = document.getElementById('preset-trigger-icon');
+  const presetDropdownMenu = document.getElementById('preset-dropdown-menu');
+  const presetClearBtn = document.getElementById('preset-clear-btn');
+  const presetSearchInput = document.getElementById('preset-search-input');
+  const presetSearchClear = document.getElementById('preset-search-clear');
+  const presetListViewport = document.getElementById('preset-list-viewport');
+  const presetTabs = document.querySelectorAll('.preset-tab');
+  const quickChips = document.querySelectorAll('.quick-chip');
+
+  let currentPresetTab = 'all';
+  let presetSearchQuery = '';
+
+  function renderPresetList() {
+    if (!presetListViewport) return;
+
+    const query = presetSearchQuery.toLowerCase().trim();
+    const currentVal = presetSelect ? presetSelect.value : '';
+
+    const entries = Object.entries(PRESETS).filter(([key, p]) => {
+      // Tab filter
+      if (currentPresetTab !== 'all' && p.category !== currentPresetTab) {
+        return false;
+      }
+      // Search filter
+      if (query) {
+        const text = `${p.name} ${p.desc} ${p.tag} ${key}`.toLowerCase();
+        return text.includes(query);
+      }
+      return true;
+    });
+
+    const urbanItems = entries.filter(([_, p]) => p.category === 'urban');
+    const highwayItems = entries.filter(([_, p]) => p.category === 'highway');
+
+    if (entries.length === 0) {
+      presetListViewport.innerHTML = `
+        <div style="padding: 24px 16px; text-align: center; color: var(--text-muted); font-size: 0.8rem;">
+          No matching presets found for "<strong>${escapeHtml(presetSearchQuery)}</strong>"
+        </div>
+      `;
+      return;
+    }
+
+    let html = '';
+
+    const renderGroup = (title, count, items) => {
+      if (items.length === 0) return '';
+      let groupHtml = `
+        <div class="preset-group-header">
+          <span>${title}</span>
+          <span class="preset-group-count">${count} routes</span>
+        </div>
+      `;
+      items.forEach(([key, p]) => {
+        const isSelected = key === currentVal;
+        groupHtml += `
+          <div class="preset-item ${isSelected ? 'selected' : ''}" data-key="${key}" role="option" aria-selected="${isSelected}">
+            <div class="preset-item-content">
+              <div class="preset-item-title">
+                <span>${escapeHtml(p.name)}</span>
+              </div>
+              <div class="preset-item-desc">${escapeHtml(p.desc)}</div>
+            </div>
+            <div class="preset-item-meta">
+              <span class="preset-item-tag">${escapeHtml(p.tag)}</span>
+              ${isSelected ? '<span class="preset-check">✓</span>' : ''}
+            </div>
+          </div>
+        `;
+      });
+      return groupHtml;
+    };
+
+    html += renderGroup('📍 Phnom Penh Urban Delivery', urbanItems.length, urbanItems);
+    html += renderGroup('🛣️ National Corridors', highwayItems.length, highwayItems);
+
+    presetListViewport.innerHTML = html;
+
+    // Attach click listeners to preset items
+    presetListViewport.querySelectorAll('.preset-item').forEach((itemEl) => {
+      itemEl.addEventListener('click', () => {
+        const key = itemEl.getAttribute('data-key');
+        selectPreset(key);
+      });
+    });
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function selectPreset(key) {
+    if (presetSelect) {
+      presetSelect.value = key || '';
+      presetSelect.dispatchEvent(new Event('change'));
+    }
+    closePresetDropdown();
+  }
+
+  function updateCustomPresetDisplay(key) {
+    const hasKey = key && PRESETS[key];
+    if (presetTriggerLabel) {
+      presetTriggerLabel.textContent = hasKey ? PRESETS[key].name : 'Select a route preset...';
+    }
+    if (presetTriggerBadge) {
+      if (hasKey) {
+        const p = PRESETS[key];
+        presetTriggerBadge.textContent = p.category === 'urban' ? 'Urban' : 'Highway';
+        presetTriggerBadge.className = `preset-trigger-badge badge-${p.category}`;
+        presetTriggerBadge.classList.remove('hidden');
+      } else {
+        presetTriggerBadge.classList.add('hidden');
+      }
+    }
+    if (presetTriggerIcon) {
+      if (hasKey) {
+        presetTriggerIcon.textContent = PRESETS[key].category === 'urban' ? '🛵' : '🛣️';
+      } else {
+        presetTriggerIcon.textContent = '📍';
+      }
+    }
+    if (presetClearBtn) {
+      if (hasKey) {
+        presetClearBtn.classList.remove('hidden');
+      } else {
+        presetClearBtn.classList.add('hidden');
+      }
+    }
+    if (quickChips) {
+      quickChips.forEach((chip) => {
+        chip.classList.toggle('active', chip.getAttribute('data-preset') === key);
+      });
+    }
+    renderPresetList();
+  }
+
+  function openPresetDropdown() {
+    if (!presetDropdownMenu || !presetTrigger) return;
+    presetDropdownMenu.classList.remove('hidden');
+    presetTrigger.classList.add('active');
+    presetTrigger.setAttribute('aria-expanded', 'true');
+    renderPresetList();
+    if (presetSearchInput) {
+      setTimeout(() => presetSearchInput.focus(), 50);
+    }
+  }
+
+  function closePresetDropdown() {
+    if (!presetDropdownMenu || !presetTrigger) return;
+    presetDropdownMenu.classList.add('hidden');
+    presetTrigger.classList.remove('active');
+    presetTrigger.setAttribute('aria-expanded', 'false');
+    presetSearchQuery = '';
+    if (presetSearchInput) presetSearchInput.value = '';
+    if (presetSearchClear) presetSearchClear.classList.add('hidden');
+  }
+
+  if (presetTrigger) {
+    presetTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = !presetDropdownMenu.classList.contains('hidden');
+      if (isOpen) {
+        closePresetDropdown();
+      } else {
+        openPresetDropdown();
+      }
+    });
+  }
+
+  // Close when clicking outside
+  document.addEventListener('click', (e) => {
+    if (presetDropdownMenu && !presetDropdownMenu.classList.contains('hidden')) {
+      const container = document.getElementById('custom-preset-container');
+      if (container && !container.contains(e.target)) {
+        closePresetDropdown();
+      }
+    }
+  });
+
+  // Close on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && presetDropdownMenu && !presetDropdownMenu.classList.contains('hidden')) {
+      closePresetDropdown();
+    }
+  });
+
+  // Filter Category Tabs
+  presetTabs.forEach((tab) => {
+    tab.addEventListener('click', (e) => {
+      e.stopPropagation();
+      presetTabs.forEach((t) => t.classList.remove('active'));
+      tab.classList.add('active');
+      currentPresetTab = tab.getAttribute('data-tab') || 'all';
+      renderPresetList();
+    });
+  });
+
+  // Search input filter
+  if (presetSearchInput) {
+    presetSearchInput.addEventListener('input', (e) => {
+      presetSearchQuery = e.target.value;
+      if (presetSearchClear) {
+        presetSearchClear.classList.toggle('hidden', !presetSearchQuery);
+      }
+      renderPresetList();
+    });
+
+    presetSearchInput.addEventListener('click', (e) => e.stopPropagation());
+  }
+
+  if (presetSearchClear) {
+    presetSearchClear.addEventListener('click', (e) => {
+      e.stopPropagation();
+      presetSearchQuery = '';
+      if (presetSearchInput) {
+        presetSearchInput.value = '';
+        presetSearchInput.focus();
+      }
+      presetSearchClear.classList.add('hidden');
+      renderPresetList();
+    });
+  }
+
+  if (presetClearBtn) {
+    presetClearBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectPreset('');
+    });
+  }
+
+  // Quick Chips
+  quickChips.forEach((chip) => {
+    chip.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const key = chip.getAttribute('data-preset');
+      selectPreset(key);
+    });
+  });
+
+  // Native preset-select change listener (authoritative coordinator)
   presetSelect.addEventListener('change', (e) => {
     const key = e.target.value;
+    updateCustomPresetDisplay(key);
+
     if (!key || !PRESETS[key]) return;
 
     const preset = PRESETS[key];
@@ -565,6 +852,9 @@ document.addEventListener('DOMContentLoaded', () => {
     map.fitBounds([preset.start, preset.end], { padding: [60, 60] });
     calculateRoute();
   });
+
+  // Initial render
+  renderPresetList();
 
   // -------------------------------------------------------------------------
   // Algorithm Card Selection
@@ -837,6 +1127,7 @@ document.addEventListener('DOMContentLoaded', () => {
     startCoordsDisplay.textContent = 'Click map or pick preset';
     endCoordsDisplay.textContent = 'Click map or pick preset';
     presetSelect.value = '';
+    updateCustomPresetDisplay('');
 
     metricsCard.classList.add('hidden');
     compareCard.classList.add('hidden');
