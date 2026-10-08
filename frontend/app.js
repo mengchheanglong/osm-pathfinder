@@ -27,38 +27,70 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // -------------------------------------------------------------------------
-  // Cambodia Highway Presets
+  // Delivery & Highway Presets
   // -------------------------------------------------------------------------
   const PRESETS = {
+    // --- Phnom Penh Urban Delivery Corridors ---
+    'pp-depot-a-to-st271': {
+      start: [11.5680, 104.9223], // Central Market Depot A
+      end: [11.5305, 104.9085],   // St 271 / Boeung Tumpun
+      name: 'PP: Central Market Depot A → St 271 (Meanchey)'
+    },
+    'pp-depot-a-to-bkk1': {
+      start: [11.5680, 104.9223], // Central Market Depot A
+      end: [11.5528, 104.9282],   // BKK1 / Pasteur (St 51)
+      name: 'PP: Central Market Depot A → BKK1 (Pasteur)'
+    },
+    'pp-depot-b-to-tuolkork': {
+      start: [11.5435, 104.9142], // Russian Market Depot B
+      end: [11.5732, 104.8984],   // Tuol Kork (St 289)
+      name: 'PP: Russian Market Depot B → Tuol Kork (St 289)'
+    },
+    'pp-hub-to-riverside': {
+      start: [11.5621, 104.9160], // Bak Touk E-Commerce Hub
+      end: [11.5695, 104.9312],   // Riverside / Sisowath Quay
+      name: 'PP: Central Hub → Riverside (Sisowath Quay)'
+    },
+    'pp-depot-a-to-sensok': {
+      start: [11.5680, 104.9223], // Central Market Depot A
+      end: [11.5850, 104.8820],   // Sen Sok (AEON Mall 2)
+      name: 'PP: Central Market Depot A → Sen Sok (AEON 2)'
+    },
+    'pp-depot-b-to-norodom': {
+      start: [11.5435, 104.9142], // Russian Market Depot B
+      end: [11.5564, 104.9282],   // Independence Monument / Norodom
+      name: 'PP: Russian Market Depot B → Independence Monument'
+    },
+    // --- Cambodia Highway Corridors ---
     'pp-siemreap': {
       start: [11.5564, 104.9282], // Phnom Penh Central
       end: [13.3671, 103.8448],   // Siem Reap Central
-      name: 'Phnom Penh → Siem Reap'
+      name: 'Phnom Penh → Siem Reap (NR6)'
     },
     'pp-sihanoukville': {
       start: [11.5564, 104.9282], // Phnom Penh Central
       end: [10.6253, 103.5234],   // Sihanoukville
-      name: 'Phnom Penh → Sihanoukville'
+      name: 'Phnom Penh → Sihanoukville (Expressway)'
     },
     'pp-battambang': {
       start: [11.5564, 104.9282], // Phnom Penh Central
       end: [13.0957, 103.2022],   // Battambang
-      name: 'Phnom Penh → Battambang'
+      name: 'Phnom Penh → Battambang (NR5)'
     },
     'siemreap-battambang': {
       start: [13.3671, 103.8448], // Siem Reap Central
       end: [13.0957, 103.2022],   // Battambang
-      name: 'Siem Reap → Battambang'
+      name: 'Siem Reap → Battambang (NR6/NR5)'
     },
     'pp-kampot': {
       start: [11.5564, 104.9282], // Phnom Penh Central
       end: [10.6104, 104.1815],   // Kampot
-      name: 'Phnom Penh → Kampot'
+      name: 'Phnom Penh → Kampot (NR3)'
     },
     'sr-angkor': {
       start: [13.3671, 103.8448], // Siem Reap Old Market
       end: [13.4125, 103.8670],   // Angkor Wat
-      name: 'Siem Reap → Angkor Wat'
+      name: 'Siem Reap Central → Angkor Wat'
     }
   };
 

@@ -12,20 +12,108 @@ pub fn create_demo_graph() -> RoadGraph {
     let mut builder = GraphBuilder::new();
 
     // -----------------------------------------------------------------------
-    // Major Cities & Junctions
+    // Phnom Penh Urban Delivery Network & Arterials
     // -----------------------------------------------------------------------
-    // Phnom Penh Center
-    builder.add_node(1001, 11.5564, 104.9282); // Phnom Penh Central
-    builder.add_node(1002, 11.5760, 104.9230); // PP North (Wat Phnom)
-    builder.add_node(1003, 11.5450, 104.9310); // PP South (Chamkarmon)
-    builder.add_node(1004, 11.5600, 104.8900); // PP West (Toul Kork / Airport Exit)
+    // Core Landmarks
+    builder.add_node(1001, 11.5564, 104.9282); // Independence Monument (Norodom x Sihanouk)
+    builder.add_node(1002, 11.5760, 104.9230); // Wat Phnom / Chroy Changvar Roundabout
+    builder.add_node(1003, 11.5450, 104.9310); // Chamkarmon (Norodom x Mao Tse Toung)
+    builder.add_node(1004, 11.5650, 104.8960); // Techno Flyover (Russian Blvd x St 271)
 
-    // PP Urban Street Grid
-    builder.add_way(&[1001, 1002], false, 40.0);
-    builder.add_way(&[1001, 1003], false, 40.0);
-    builder.add_way(&[1001, 1004], false, 40.0);
-    builder.add_way(&[1002, 1004], false, 40.0);
-    builder.add_way(&[1003, 1004], false, 40.0);
+    // Delivery Hubs & Depots
+    builder.add_node(1010, 11.5680, 104.9223); // Central Market (Depot A)
+    builder.add_node(1020, 11.5435, 104.9142); // Russian Market / Toul Tompoung (Depot B)
+    builder.add_node(1030, 11.5621, 104.9160); // Bak Touk / E-Commerce Central Hub
+
+    // Monivong Boulevard (North-South Main Commercial Spine)
+    builder.add_node(1101, 11.5685, 104.9225); // Monivong x Kampuchea Krom (Central Market East)
+    builder.add_node(1102, 11.5625, 104.9226); // Monivong x Charles de Gaulle
+    builder.add_node(1103, 11.5564, 104.9225); // Monivong x Sihanouk Blvd
+    builder.add_node(1104, 11.5490, 104.9230); // Monivong x St 288 (BKK1 West)
+    builder.add_node(1105, 11.5410, 104.9240); // Bokor Junction (Monivong x Mao Tse Toung)
+    builder.add_node(1106, 11.5360, 104.9270); // Monivong South (Boeung Keng Kang South)
+    builder.add_node(1107, 11.5310, 104.9310); // Kbal Tnal Interchange / Monivong Bridge
+    builder.add_way(&[1002, 1101, 1102, 1103, 1104, 1105, 1106, 1107], false, 40.0);
+
+    // Norodom Boulevard (North-South Grand Avenue)
+    builder.add_node(1110, 11.5760, 104.9265); // Wat Phnom East / Norodom North
+    builder.add_node(1111, 11.5670, 104.9270); // Norodom x St 130 (Central Daun Penh)
+    builder.add_node(1112, 11.5615, 104.9275); // Norodom x St 178 (National Museum)
+    builder.add_node(1113, 11.5500, 104.9295); // Norodom x St 294 (BKK1 East)
+    builder.add_node(1114, 11.5380, 104.9325); // Norodom South (Tonle Bassac Embassy Zone)
+    builder.add_way(&[1110, 1111, 1112, 1001, 1113, 1003, 1114, 1107], false, 45.0);
+    builder.add_way(&[1002, 1110], false, 35.0); // Wat Phnom circle
+
+    // Sisowath Quay & Riverside Waterfront
+    builder.add_node(1120, 11.5750, 104.9315); // Night Market / Old Market Quay
+    builder.add_node(1121, 11.5695, 104.9312); // Riverside / Phsar Kandal
+    builder.add_node(1122, 11.5630, 104.9335); // Royal Palace Quay
+    builder.add_node(1123, 11.5520, 104.9380); // NagaWorld / Koh Pich (Diamond Island)
+    builder.add_way(&[1120, 1121, 1122, 1123], false, 35.0);
+    builder.add_way(&[1110, 1120], false, 35.0);
+    builder.add_way(&[1111, 1121], false, 35.0);
+    builder.add_way(&[1001, 1123], false, 35.0);
+
+    // Chroy Changvar Bridge
+    builder.add_node(1125, 11.5830, 104.9300); // Chroy Changvar Peninsula
+    builder.add_way(&[1002, 1125], false, 50.0);
+
+    // Sihanouk Boulevard (East-West Arterial)
+    builder.add_node(1130, 11.5564, 104.9250); // Sihanouk x Pasteur (St 51)
+    builder.add_node(1131, 11.5564, 104.9150); // Sihanouk x Olympic Stadium East
+    builder.add_node(1132, 11.5564, 104.9060); // Olympic Stadium West / St 182
+    builder.add_way(&[1123, 1001, 1130, 1103, 1131, 1132], false, 40.0);
+
+    // Kampuchea Krom Boulevard (St 128) & Central Market Access
+    builder.add_node(1140, 11.5680, 104.9180); // Central Market West / Depo Market approach
+    builder.add_node(1141, 11.5665, 104.9060); // Kampuchea Krom x Nehru Blvd (Depo Market)
+    builder.add_way(&[1111, 1101, 1010, 1140, 1141, 1004], false, 40.0);
+
+    // Russian Federation Boulevard (Airport / Sen Sok Express)
+    builder.add_node(1150, 11.5740, 104.9130); // French Embassy / Tuol Kork South
+    builder.add_node(1151, 11.5630, 104.8870); // RUPP / Royal University
+    builder.add_node(1152, 11.5600, 104.8720); // Phsar Dei Huy Flyover
+    builder.add_node(1153, 11.5500, 104.8450); // Phnom Penh International Airport (PNH)
+    builder.add_way(&[1002, 1150, 1004, 1151, 1152, 1153], false, 60.0);
+
+    // Mao Tse Toung Boulevard
+    builder.add_node(1160, 11.5445, 104.9165); // Mao Tse Toung x St 163 (Russian Market north)
+    builder.add_node(1161, 11.5475, 104.9060); // Mao Tse Toung x Chinese Embassy
+    builder.add_node(1162, 11.5540, 104.8990); // Mao Tse Toung x St 217
+    builder.add_way(&[1003, 1105, 1160, 1161, 1162, 1004], false, 45.0);
+
+    // Street 271 (Southern Ring Road / Meanchey Artery)
+    builder.add_node(1170, 11.5305, 104.9180); // St 271 x Boeung Tumpun East
+    builder.add_node(1171, 11.5305, 104.9085); // St 271 x St 371 (Boeung Tumpun South)
+    builder.add_node(1172, 11.5340, 104.8920); // St 271 x St 217 (Steung Meanchey Flyover)
+    builder.add_node(1173, 11.5500, 104.8930); // St 271 x Olympic West / St 182
+    builder.add_way(&[1107, 1170, 1171, 1172, 1173, 1004], false, 45.0);
+    builder.add_way(&[1132, 1173], false, 40.0); // Olympic West connector
+
+    // Russian Market (Toul Tompoung) District & St 163 Corridor
+    builder.add_node(1180, 11.5390, 104.9150); // St 163 x St 432 (Russian Market South)
+    builder.add_way(&[1160, 1020, 1180, 1170], false, 35.0); // St 163 connecting to St 271
+    builder.add_way(&[1180, 1106], false, 30.0); // St 432 east to Monivong
+
+    // BKK1 Residential & Commercial Delivery Grid
+    builder.add_node(1190, 11.5528, 104.9282); // Pasteur (St 51) x St 288 (BKK1 Central)
+    builder.add_node(1191, 11.5510, 104.9245); // St 63 (Trasak Paem) x St 288
+    builder.add_way(&[1130, 1190, 1113], false, 30.0); // Pasteur (St 51)
+    builder.add_way(&[1104, 1191, 1190, 1113], false, 30.0); // St 288 east-west
+    builder.add_way(&[1103, 1191, 1105], false, 30.0); // St 63 north-south
+
+    // Olympic / Bak Touk Central Hub Grid
+    builder.add_way(&[1140, 1030, 1131], false, 35.0); // Charles de Gaulle through Central Hub
+    builder.add_way(&[1102, 1030, 1141], false, 35.0); // Bak Touk cross connector
+
+    // Tuol Kork & Sen Sok Delivery Zones
+    builder.add_node(1200, 11.5732, 104.8984); // Tuol Kork / St 289 (TK Avenue)
+    builder.add_node(1201, 11.5850, 104.8900); // Tuol Kork North / St 598
+    builder.add_node(1202, 11.5850, 104.8820); // Sen Sok / AEON Mall 2 / St 1003
+    builder.add_way(&[1004, 1200, 1201], false, 40.0); // St 289
+    builder.add_way(&[1201, 1202], false, 45.0); // St 598 to Sen Sok
+    builder.add_way(&[1152, 1202], false, 45.0); // Phsar Dei Huy Flyover to Sen Sok
+    builder.add_way(&[1150, 1200], false, 35.0); // French Embassy to TK Avenue
 
     // -----------------------------------------------------------------------
     // National Road 6 (PP -> Kampong Thom -> Siem Reap)
@@ -194,5 +282,41 @@ mod tests {
             (250.0..=350.0).contains(&dist_km),
             "PP to SR should be ~260-320 km, got {dist_km:.1} km"
         );
+    }
+
+    #[test]
+    fn test_phnom_penh_urban_routes() {
+        let graph = create_demo_graph();
+
+        // 1. Central Market Depot A (1010) -> Meanchey St 271 (1171)
+        let depot_a = graph.get_internal_id(1010).expect("Depot A exists");
+        let st271 = graph.get_internal_id(1171).expect("St 271 exists");
+        let route1 = crate::pathfinding::astar_search(&graph, depot_a, st271);
+        assert!(route1.is_some(), "Path from Depot A to St 271 must exist");
+        let r1 = route1.unwrap();
+        let dist1_km = r1.distance_m / 1000.0;
+        assert!(
+            (4.0..=8.0).contains(&dist1_km),
+            "Depot A to St 271 should be ~4-8 km, got {dist1_km:.2} km"
+        );
+        assert!(r1.path.len() >= 4, "Should route via intermediate urban streets");
+
+        // 2. Russian Market Depot B (1020) -> Tuol Kork St 289 (1200)
+        let depot_b = graph.get_internal_id(1020).expect("Depot B exists");
+        let tuol_kork = graph.get_internal_id(1200).expect("Tuol Kork exists");
+        let route2 = crate::pathfinding::astar_search(&graph, depot_b, tuol_kork);
+        assert!(route2.is_some(), "Path from Depot B to Tuol Kork must exist");
+        let r2 = route2.unwrap();
+        let dist2_km = r2.distance_m / 1000.0;
+        assert!(
+            (4.0..=8.0).contains(&dist2_km),
+            "Depot B to Tuol Kork should be ~4-8 km, got {dist2_km:.2} km"
+        );
+
+        // 3. Bak Touk Hub (1030) -> Riverside (1121)
+        let bak_touk = graph.get_internal_id(1030).expect("Bak Touk exists");
+        let riverside = graph.get_internal_id(1121).expect("Riverside exists");
+        let route3 = crate::pathfinding::astar_search(&graph, bak_touk, riverside);
+        assert!(route3.is_some(), "Path from Bak Touk to Riverside must exist");
     }
 }
