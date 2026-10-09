@@ -9,7 +9,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tracing::{info, warn};
+use tracing::info;
 
 use osm_pathfinder::{api, graph, osm, spatial, AppState};
 
@@ -52,25 +52,16 @@ async fn main() -> Result<()> {
 
     info!("osm-pathfinder v{}", env!("CARGO_PKG_VERSION"));
 
-    let use_demo = args.demo || args.data.as_ref().map(|p| !p.exists()).unwrap_or(true);
-
-    let road_graph = if use_demo {
-        if let Some(ref path) = args.data {
-            if !path.exists() {
-                warn!(
-                    path = %path.display(),
-                    "OSM file not found. Falling back to built-in Cambodia road network"
-                );
-            }
-        } else {
-            info!("No OSM file specified (--data). Loading built-in Cambodia highway network");
+    let road_graph = if let Some(ref path) = args.data {
+        if !path.exists() {
+            anyhow::bail!("OSM PBF data file not found: {}", path.display());
         }
-        graph::create_demo_graph()
-    } else {
-        let path = args.data.as_ref().unwrap();
         info!(path = %path.display(), "Loading OSM PBF data");
         osm::parse_pbf(path)
             .with_context(|| format!("Failed to parse OSM file: {}", path.display()))?
+    } else {
+        info!("Loading built-in Cambodia highway network");
+        graph::create_demo_graph()
     };
 
     info!(
@@ -95,11 +86,32 @@ async fn main() -> Result<()> {
         "Contraction Hierarchies preprocessed"
     );
 
+    let (is_demo, dataset_name, graph_version) = if let Some(ref path) = args.data {
+        (
+            false,
+            path.file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string(),
+            format!("pbf-{}", path.display()),
+        )
+    } else {
+        (
+            true,
+            "demo-cambodia".to_string(),
+            "demo-cambodia-v1.0".to_string(),
+        )
+    };
+
     // Create shared application state
     let state = Arc::new(AppState {
         road_graph,
         spatial_index,
         ch_graph,
+        is_demo,
+        dataset_name,
+        graph_version,
+        cost_model_version: "tdsp-profiles-v1.0".to_string(),
     });
 
     // Build and start the HTTP server

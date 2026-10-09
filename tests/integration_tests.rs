@@ -128,11 +128,11 @@ async fn test_ch_rejects_dynamic_departure_time() {
     let ch_graph = std::sync::Arc::new(osm_pathfinder::pathfinding::build_contraction_hierarchies(
         &graph,
     ));
-    let state = std::sync::Arc::new(osm_pathfinder::AppState {
-        road_graph: graph,
+    let state = std::sync::Arc::new(osm_pathfinder::AppState::new_demo(
+        graph,
         spatial_index,
         ch_graph,
-    });
+    ));
 
     let req = osm_pathfinder::api::handlers::RouteRequest {
         start_lat: 11.5564,
@@ -142,6 +142,7 @@ async fn test_ch_rejects_dynamic_departure_time() {
         algorithm: osm_pathfinder::pathfinding::Algorithm::ContractionHierarchies,
         metric: osm_pathfinder::pathfinding::CostMetric::Time,
         departure_time: Some("08:15".to_string()),
+        profile: None,
         include_explored: false,
     };
 
@@ -157,4 +158,108 @@ async fn test_ch_rejects_dynamic_departure_time() {
     assert!(err_json
         .error
         .contains("Contraction Hierarchies does not support dynamic departure_time"));
+}
+
+#[tokio::test]
+async fn test_calculate_matrix_api() {
+    let graph = osm_pathfinder::graph::create_demo_graph();
+    let spatial_index = osm_pathfinder::spatial::SpatialIndex::new(&graph);
+    let ch_graph = std::sync::Arc::new(osm_pathfinder::pathfinding::build_contraction_hierarchies(
+        &graph,
+    ));
+    let state = std::sync::Arc::new(osm_pathfinder::AppState::new_demo(
+        graph,
+        spatial_index,
+        ch_graph,
+    ));
+
+    let origins = vec![
+        osm_pathfinder::api::handlers::CoordinateInput {
+            lat: 11.5564,
+            lon: 104.9282,
+        },
+        osm_pathfinder::api::handlers::CoordinateInput {
+            lat: 11.5760,
+            lon: 104.9230,
+        },
+    ];
+
+    let destinations = vec![
+        osm_pathfinder::api::handlers::CoordinateInput {
+            lat: 11.5720,
+            lon: 104.8980,
+        },
+        osm_pathfinder::api::handlers::CoordinateInput {
+            lat: 11.5435,
+            lon: 104.9142,
+        },
+        osm_pathfinder::api::handlers::CoordinateInput {
+            lat: 11.5890,
+            lon: 104.9350,
+        },
+    ];
+
+    let req = osm_pathfinder::api::handlers::MatrixRequest {
+        origins,
+        destinations,
+        profile: Some("car".to_string()),
+        metric: osm_pathfinder::pathfinding::CostMetric::Time,
+        departure_time: None,
+    };
+
+    let result = osm_pathfinder::api::handlers::calculate_matrix(
+        axum::extract::State(state),
+        axum::Json(req),
+    )
+    .await;
+
+    assert!(result.is_ok());
+    let axum::Json(res) = result.unwrap();
+    assert_eq!(res.durations.len(), 2);
+    assert_eq!(res.durations[0].len(), 3);
+    assert_eq!(res.distances.len(), 2);
+    assert_eq!(res.distances[0].len(), 3);
+    assert_eq!(res.graph_version, "demo-cambodia-v1.0");
+    assert_eq!(res.cost_model_version, "tdsp-profiles-v1.0");
+}
+
+#[tokio::test]
+async fn test_calculate_matrix_bounds_rejection() {
+    let graph = osm_pathfinder::graph::create_demo_graph();
+    let spatial_index = osm_pathfinder::spatial::SpatialIndex::new(&graph);
+    let ch_graph = std::sync::Arc::new(osm_pathfinder::pathfinding::build_contraction_hierarchies(
+        &graph,
+    ));
+    let state = std::sync::Arc::new(osm_pathfinder::AppState::new_demo(
+        graph,
+        spatial_index,
+        ch_graph,
+    ));
+
+    let oob_req = osm_pathfinder::api::handlers::MatrixRequest {
+        origins: vec![osm_pathfinder::api::handlers::CoordinateInput {
+            lat: 85.0000,
+            lon: 0.0000,
+        }],
+        destinations: vec![osm_pathfinder::api::handlers::CoordinateInput {
+            lat: 11.5564,
+            lon: 104.9282,
+        }],
+        profile: Some("car".to_string()),
+        metric: osm_pathfinder::pathfinding::CostMetric::Time,
+        departure_time: None,
+    };
+
+    let result = osm_pathfinder::api::handlers::calculate_matrix(
+        axum::extract::State(state),
+        axum::Json(oob_req),
+    )
+    .await;
+
+    assert!(result.is_err());
+    let (status, err_json) = result.unwrap_err();
+    assert_eq!(status, axum::http::StatusCode::BAD_REQUEST);
+    assert!(err_json
+        .error
+        .contains("Coordinate outside routable network bounds"));
 }

@@ -16,6 +16,52 @@ impl Coordinate {
     }
 }
 
+/// Standard OSM road classes for vehicular navigation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum RoadClass {
+    Motorway,
+    Trunk,
+    #[default]
+    Primary,
+    Secondary,
+    Tertiary,
+    Residential,
+    LivingStreet,
+    Service,
+    Other,
+}
+
+impl RoadClass {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            RoadClass::Motorway => "motorway",
+            RoadClass::Trunk => "trunk",
+            RoadClass::Primary => "primary",
+            RoadClass::Secondary => "secondary",
+            RoadClass::Tertiary => "tertiary",
+            RoadClass::Residential => "residential",
+            RoadClass::LivingStreet => "living_street",
+            RoadClass::Service => "service",
+            RoadClass::Other => "other",
+        }
+    }
+
+    pub fn from_tag(tag: &str) -> Self {
+        match tag {
+            "motorway" | "motorway_link" => RoadClass::Motorway,
+            "trunk" | "trunk_link" => RoadClass::Trunk,
+            "primary" | "primary_link" => RoadClass::Primary,
+            "secondary" | "secondary_link" => RoadClass::Secondary,
+            "tertiary" | "tertiary_link" => RoadClass::Tertiary,
+            "residential" => RoadClass::Residential,
+            "living_street" => RoadClass::LivingStreet,
+            "service" => RoadClass::Service,
+            _ => RoadClass::Other,
+        }
+    }
+}
+
 /// A directed edge in the road graph.
 #[derive(Debug, Clone, Copy)]
 pub struct Edge {
@@ -25,6 +71,8 @@ pub struct Edge {
     pub distance_m: f64,
     /// Estimated travel duration in seconds (based on road type speed).
     pub duration_s: f64,
+    /// Road class of the underlying street/highway.
+    pub road_class: RoadClass,
 }
 
 /// The in-memory road graph built from OpenStreetMap data.

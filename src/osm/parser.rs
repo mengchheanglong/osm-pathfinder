@@ -14,7 +14,7 @@ use anyhow::{Context, Result};
 use osmpbf::{Element, ElementReader};
 use tracing::{debug, info};
 
-use crate::graph::{GraphBuilder, RoadGraph};
+use crate::graph::{GraphBuilder, RoadClass, RoadGraph};
 
 /// Highway types to include in the road network, with estimated speed limits (km/h).
 const HIGHWAY_SPEEDS: &[(&str, f64)] = &[
@@ -55,8 +55,8 @@ pub fn parse_pbf(path: &Path) -> Result<RoadGraph> {
     let reader = ElementReader::from_path(path)
         .with_context(|| format!("Failed to open PBF file: {}", path.display()))?;
 
-    // Stores: (node_ids, is_oneway, speed_kmh)
-    let mut ways: Vec<(Vec<i64>, bool, f64)> = Vec::new();
+    // Stores: (node_ids, is_oneway, speed_kmh, road_class)
+    let mut ways: Vec<(Vec<i64>, bool, f64, RoadClass)> = Vec::new();
     let mut referenced_nodes: HashSet<i64> = HashSet::new();
 
     reader
@@ -88,7 +88,8 @@ pub fn parse_pbf(path: &Path) -> Result<RoadGraph> {
                             is_oneway = true;
                         }
 
-                        ways.push((node_ids, is_oneway, speed));
+                        let road_class = RoadClass::from_tag(hw_type);
+                        ways.push((node_ids, is_oneway, speed, road_class));
                     }
                 }
             }
@@ -128,8 +129,8 @@ pub fn parse_pbf(path: &Path) -> Result<RoadGraph> {
     debug!("Node coordinates loaded, adding edges");
 
     // Add all road ways as edges
-    for (node_ids, is_oneway, speed) in &ways {
-        builder.add_way(node_ids, *is_oneway, *speed);
+    for (node_ids, is_oneway, speed, road_class) in &ways {
+        builder.add_way_with_class(node_ids, *is_oneway, *speed, *road_class);
     }
 
     let graph = builder.build();

@@ -588,6 +588,7 @@ mod tests {
             metric: CostMetric::Time,
             departure_minutes: None,
             collect_explored: false,
+            ..Default::default()
         };
         let res = ch_search(&ch, &graph, 0, 3, &opts).expect("CH time query succeeds");
         assert_eq!(*res.path.first().unwrap(), 0);

@@ -42,6 +42,10 @@ pub async fn health_check() -> Json<HealthResponse> {
 pub struct GraphStatsResponse {
     pub nodes: usize,
     pub edges: usize,
+    pub is_demo: bool,
+    pub dataset_name: String,
+    pub graph_version: String,
+    pub cost_model_version: String,
 }
 
 /// GET /api/graph/stats
@@ -51,6 +55,10 @@ pub async fn graph_stats(State(state): State<Arc<AppState>>) -> Json<GraphStatsR
     Json(GraphStatsResponse {
         nodes: state.road_graph.node_count(),
         edges: state.road_graph.edge_count(),
+        is_demo: state.is_demo,
+        dataset_name: state.dataset_name.clone(),
+        graph_version: state.graph_version.clone(),
+        cost_model_version: state.cost_model_version.clone(),
     })
 }
 
@@ -77,6 +85,9 @@ pub struct RouteRequest {
     pub metric: CostMetric,
     /// Optional departure time in 24h format (e.g. "08:15", "17:30") for traffic simulation.
     pub departure_time: Option<String>,
+    /// Vehicle profile: car, van, truck, motorcycle. Defaults to car.
+    #[serde(default)]
+    pub profile: Option<String>,
     /// Whether to include coordinates of visited nodes for wavefront visualization.
     #[serde(default)]
     pub include_explored: bool,
@@ -112,10 +123,16 @@ pub struct RouteResponse {
     pub start_snapped: [f64; 2],
     /// End node snapped coordinate.
     pub end_snapped: [f64; 2],
+    /// Whether this route was calculated on the demo synthetic graph.
+    pub is_demo: bool,
+    /// Loaded road graph version.
+    pub graph_version: String,
+    /// Cost model version.
+    pub cost_model_version: String,
 }
 
 /// Error response body.
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct ErrorResponse {
     pub error: String,
 }
@@ -181,8 +198,15 @@ pub async fn calculate_route(
         .as_deref()
         .and_then(traffic::parse_time_of_day);
 
+    let profile = request
+        .profile
+        .as_deref()
+        .and_then(pathfinding::VehicleProfile::from_str_opt)
+        .unwrap_or_default();
+
     let routing_options = RoutingOptions {
         metric: request.metric,
+        profile,
         departure_minutes,
         collect_explored: request.include_explored,
     };
@@ -273,6 +297,9 @@ pub async fn calculate_route(
                 departure_time: request.departure_time,
                 start_snapped: [start_lon, start_lat],
                 end_snapped: [end_lon, end_lat],
+                is_demo: state.is_demo,
+                graph_version: state.graph_version.clone(),
+                cost_model_version: state.cost_model_version.clone(),
             }))
         }
         None => {
@@ -378,6 +405,7 @@ async fn compute_isochrone_internal(
 
     let options = RoutingOptions {
         metric: CostMetric::Time,
+        profile: pathfinding::VehicleProfile::Car,
         departure_minutes,
         collect_explored: false,
     };
@@ -413,6 +441,104 @@ async fn compute_isochrone_internal(
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse {
                 error: "Failed to compute isochrone contours".to_string(),
+            }),
+        )),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Directed Cost Matrix
+// ---------------------------------------------------------------------------
+
+/// Geographic coordinate input for matrix requests.
+#[derive(Debug, Deserialize)]
+pub struct CoordinateInput {
+    pub lat: f64,
+    pub lon: f64,
+}
+
+/// Request body for the directed cost matrix endpoint.
+#[derive(Debug, Deserialize)]
+pub struct MatrixRequest {
+    /// List of origin coordinates.
+    pub origins: Vec<CoordinateInput>,
+    /// List of destination coordinates.
+    pub destinations: Vec<CoordinateInput>,
+    /// Vehicle profile: car, van, truck, motorcycle. Defaults to car.
+    #[serde(default)]
+    pub profile: Option<String>,
+    /// Optimization metric (distance vs time). Defaults to time.
+    #[serde(default)]
+    pub metric: CostMetric,
+    /// Optional departure time in 24h format (e.g. "08:15", "17:30").
+    pub departure_time: Option<String>,
+}
+
+/// POST /api/matrix
+///
+/// Computes an N x M directed travel duration and distance matrix.
+///
+/// Supports asymmetric network costs, vehicle profile road filtering and speed caps,
+/// time-dependent traffic delays, and explicit null cells for unreachable components.
+pub async fn calculate_matrix(
+    State(state): State<Arc<AppState>>,
+    Json(request): Json<MatrixRequest>,
+) -> Result<Json<pathfinding::MatrixResponse>, (StatusCode, Json<ErrorResponse>)> {
+    if request.origins.is_empty() || request.destinations.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                error: "Origins and destinations must not be empty".to_string(),
+            }),
+        ));
+    }
+
+    let profile = request
+        .profile
+        .as_deref()
+        .and_then(pathfinding::VehicleProfile::from_str_opt)
+        .unwrap_or_default();
+
+    let origins: Vec<crate::graph::Coordinate> = request
+        .origins
+        .iter()
+        .map(|c| crate::graph::Coordinate::new(c.lat, c.lon))
+        .collect();
+
+    let destinations: Vec<crate::graph::Coordinate> = request
+        .destinations
+        .iter()
+        .map(|c| crate::graph::Coordinate::new(c.lat, c.lon))
+        .collect();
+
+    info!(
+        origins_count = origins.len(),
+        destinations_count = destinations.len(),
+        profile = profile.as_str(),
+        metric = ?request.metric,
+        "Computing directed cost matrix"
+    );
+
+    match pathfinding::compute_cost_matrix(
+        &state.road_graph,
+        &state.spatial_index,
+        &origins,
+        &destinations,
+        profile,
+        request.metric,
+        request.departure_time.as_deref(),
+    ) {
+        Ok(matrix) => Ok(Json(matrix)),
+        Err(pathfinding::MatrixError::OutOfBounds) => Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                error: "Coordinate outside routable network bounds".to_string(),
+            }),
+        )),
+        Err(pathfinding::MatrixError::Unsnappable) => Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                error: "No road node found near coordinate within routable distance".to_string(),
             }),
         )),
     }

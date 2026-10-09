@@ -9,4 +9,4 @@ mod types;
 
 pub use builder::GraphBuilder;
 pub use demo::create_demo_graph;
-pub use types::{Coordinate, Edge, RoadGraph};
+pub use types::{Coordinate, Edge, RoadClass, RoadGraph};

@@ -5,7 +5,7 @@
 //! and urban street grids in Phnom Penh and Siem Reap.
 
 use super::builder::GraphBuilder;
-use super::types::RoadGraph;
+use super::types::{RoadClass, RoadGraph};
 
 /// Creates a demo road network spanning Cambodia with national highway corridors.
 pub fn create_demo_graph() -> RoadGraph {
@@ -93,14 +93,14 @@ pub fn create_demo_graph() -> RoadGraph {
     // Russian Market (Toul Tompoung) District & St 163 Corridor
     builder.add_node(1180, 11.5390, 104.9150); // St 163 x St 432 (Russian Market South)
     builder.add_way(&[1160, 1020, 1180, 1170], false, 35.0); // St 163 connecting to St 271
-    builder.add_way(&[1180, 1106], false, 30.0); // St 432 east to Monivong
+    builder.add_way_with_class(&[1180, 1106], false, 30.0, RoadClass::Residential); // St 432 east to Monivong
 
     // BKK1 Residential & Commercial Delivery Grid
     builder.add_node(1190, 11.5528, 104.9282); // Pasteur (St 51) x St 288 (BKK1 Central)
     builder.add_node(1191, 11.5510, 104.9245); // St 63 (Trasak Paem) x St 288
-    builder.add_way(&[1130, 1190, 1113], false, 30.0); // Pasteur (St 51)
-    builder.add_way(&[1104, 1191, 1190, 1113], false, 30.0); // St 288 east-west
-    builder.add_way(&[1103, 1191, 1105], false, 30.0); // St 63 north-south
+    builder.add_way_with_class(&[1130, 1190, 1113], false, 30.0, RoadClass::Residential); // Pasteur (St 51)
+    builder.add_way_with_class(&[1104, 1191, 1190, 1113], false, 30.0, RoadClass::Residential); // St 288 east-west
+    builder.add_way_with_class(&[1103, 1191, 1105], false, 30.0, RoadClass::Residential); // St 63 north-south
 
     // Olympic / Bak Touk Central Hub Grid
     builder.add_way(&[1140, 1030, 1131], false, 35.0); // Charles de Gaulle through Central Hub
@@ -198,7 +198,7 @@ pub fn create_demo_graph() -> RoadGraph {
     for (id, lat, lon) in exp_nodes {
         builder.add_node(id, lat, lon);
     }
-    builder.add_way(&[1004, 4101, 4102, 4103, 4004], false, 120.0);
+    builder.add_way_with_class(&[1004, 4101, 4102, 4103, 4004], false, 120.0, RoadClass::Motorway);
 
     // -----------------------------------------------------------------------
     // National Road 3 (PP -> Kampot -> Kep)

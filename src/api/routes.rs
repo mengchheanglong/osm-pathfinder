@@ -24,6 +24,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/api/health", get(handlers::health_check))
         .route("/api/route", post(handlers::calculate_route))
+        .route("/api/matrix", post(handlers::calculate_matrix))
         .route(
             "/api/isochrone",
             post(handlers::calculate_isochrone).get(handlers::calculate_isochrone_get),

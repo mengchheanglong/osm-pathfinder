@@ -50,6 +50,8 @@ pub enum CostMetric {
 pub struct RoutingOptions {
     /// Optimization criterion: Distance vs. Time.
     pub metric: CostMetric,
+    /// Vehicle profile for road access, speed caps, and turn penalties.
+    pub profile: super::profile::VehicleProfile,
     /// Optional departure time in minutes from midnight (0..1439).
     pub departure_minutes: Option<u32>,
     /// Whether to collect explored node coordinates for wavefront visualization.

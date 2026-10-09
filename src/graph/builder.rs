@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-use super::types::{Coordinate, Edge, RoadGraph};
+use super::types::{Coordinate, Edge, RoadClass, RoadGraph};
 use crate::geo::haversine;
 
 /// Incrementally builds a [`RoadGraph`] from OSM elements.
@@ -76,12 +76,19 @@ impl GraphBuilder {
         self.osm_id_map.get(&osm_id).copied()
     }
 
-    /// Adds a road segment (way) as edges between consecutive nodes.
+    /// Adds a road segment (way) as edges between consecutive nodes with a specific road class.
     ///
     /// `node_osm_ids` are the OSM node IDs forming the way.
     /// `is_oneway` controls whether reverse edges are created.
     /// `speed_kmh` is the assumed travel speed for duration calculation.
-    pub fn add_way(&mut self, node_osm_ids: &[i64], is_oneway: bool, speed_kmh: f64) {
+    /// `road_class` specifies the functional road classification.
+    pub fn add_way_with_class(
+        &mut self,
+        node_osm_ids: &[i64],
+        is_oneway: bool,
+        speed_kmh: f64,
+        road_class: RoadClass,
+    ) {
         let speed_ms = speed_kmh / 3.6; // Convert km/h to m/s
 
         for window in node_osm_ids.windows(2) {
@@ -114,12 +121,14 @@ impl GraphBuilder {
                 target: to_id,
                 distance_m,
                 duration_s,
+                road_class,
             });
             // Reverse adjacency stores incoming edge for backward search
             self.reverse_adjacency[to_id as usize].push(Edge {
                 target: from_id,
                 distance_m,
                 duration_s,
+                road_class,
             });
 
             // Reverse edge (if not one-way, to -> from is also a valid traversal)
@@ -128,14 +137,21 @@ impl GraphBuilder {
                     target: from_id,
                     distance_m,
                     duration_s,
+                    road_class,
                 });
                 self.reverse_adjacency[from_id as usize].push(Edge {
                     target: to_id,
                     distance_m,
                     duration_s,
+                    road_class,
                 });
             }
         }
+    }
+
+    /// Adds a road segment (way) as edges between consecutive nodes, defaulting to Primary.
+    pub fn add_way(&mut self, node_osm_ids: &[i64], is_oneway: bool, speed_kmh: f64) {
+        self.add_way_with_class(node_osm_ids, is_oneway, speed_kmh, RoadClass::Primary);
     }
 
     /// Consumes the builder and produces the final [`RoadGraph`].

@@ -8,6 +8,8 @@ mod bidirectional;
 pub mod ch;
 mod dijkstra;
 pub mod isochrone;
+pub mod matrix;
+pub mod profile;
 mod types;
 
 pub use astar::{astar_search, astar_search_with_options};
@@ -18,4 +20,6 @@ pub use bidirectional::{
 pub use ch::{build_contraction_hierarchies, ch_search, ChEdge, ChGraph};
 pub use dijkstra::{dijkstra_search, dijkstra_search_with_options};
 pub use isochrone::{compute_isochrones, IsochroneBucket, IsochroneResult};
+pub use matrix::{compute_cost_matrix, validate_cambodia_bounds, MatrixError, MatrixResponse};
+pub use profile::VehicleProfile;
 pub use types::{Algorithm, CostMetric, PathResult, RoutingOptions};

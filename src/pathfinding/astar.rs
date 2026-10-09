@@ -416,6 +416,7 @@ mod tests {
             metric: CostMetric::Time,
             departure_minutes: None,
             collect_explored: false,
+            ..Default::default()
         };
         let res_static = astar_search_with_options(&graph, 0, 2, &opts_static).unwrap();
 
@@ -423,6 +424,7 @@ mod tests {
             metric: CostMetric::Time,
             departure_minutes: Some(8 * 60 + 15), // Morning rush hour
             collect_explored: false,
+            ..Default::default()
         };
         let res_traffic = astar_search_with_options(&graph, 0, 2, &opts_traffic).unwrap();
 
