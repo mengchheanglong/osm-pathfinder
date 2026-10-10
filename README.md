@@ -106,7 +106,7 @@ Junction delay $\text{cost}_{\text{turn}}(\Delta\theta)$ models deceleration and
 git clone https://github.com/mengchheanglong/osm-pathfinder.git
 cd osm-pathfinder
 
-# Run with built-in demo network (starts on http://localhost:3000)
+# Run with built-in demo network (starts on http://localhost:8000)
 cargo run --release
 ```
 
@@ -121,7 +121,7 @@ powershell -File scripts/download_cambodia_osm.ps1   # Windows
 cargo run --release -- --data data/cambodia-latest.osm.pbf
 ```
 
-> The server also hosts a lightweight Leaflet map interface at `http://localhost:3000` for visual testing.
+> The server also hosts a lightweight Leaflet map interface at `http://localhost:8000` for visual testing.
 
 ---
 

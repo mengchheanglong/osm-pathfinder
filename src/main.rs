@@ -34,7 +34,7 @@ struct Args {
     host: String,
 
     /// Port to bind the server to.
-    #[arg(short, long, default_value_t = 3000, env = "SERVER_PORT")]
+    #[arg(short, long, default_value_t = 8000, env = "SERVER_PORT")]
     port: u16,
 }
 
